@@ -1,0 +1,17 @@
+#pragma once
+#include <windows.h>
+
+namespace AppColor
+{
+	const COLORREF RGB_WEAK_BK_COLOR = RGB(50, 50, 50);
+	const COLORREF RGB_BLACK = RGB(0, 0, 0);
+	const COLORREF RGB_WHITE = RGB(255, 255, 255);
+	const COLORREF RGB_GRAY = RGB(128, 128, 128);
+	const COLORREF BUTTON_DOWN_RGB = RGB(35, 40, 44);
+	const COLORREF RGB_GREEN = RGB(0, 200, 0);
+	const COLORREF RGB_RED = RGB(230, 0, 0);
+	const COLORREF RGB_BLUE = RGB(0, 0, 230);
+	const COLORREF RGB_SMALL_GREEN = RGB(102, 255, 204);
+
+	const COLORREF RGB_SUB_LABEL_BK_COLOR = RGB(180, 180, 180);
+}
