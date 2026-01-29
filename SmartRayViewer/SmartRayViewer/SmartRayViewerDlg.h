@@ -6,7 +6,9 @@
 
 #include "vLabel.h"
 #include "vIconButton.h"
+#include "vGridCtrl.h"
 #include "vUtil.h"
+#include "vLog.h"
 #include "vImage.h"
 
 #include "UIHelper.h"
@@ -47,12 +49,19 @@ public:
 	virtual void OnOK();
 	virtual void OnCancel();
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+	afx_msg void OnDestroy();
 
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	void SetTimers();
 	void KillTimers();
 
+	void InitLog();
+	void WriteLog(std::wstring logKey, std::wstring logMsg) { _logMain.PushLog(logKey, logMsg); }
+
 	void InitLayout();
+	void InitGrid();
+	void ClearGridData();
+	void AddGridMeasure(int RoiNo, ZRoiStats ResultData);
 
 	void InitImage();
 	vImage _image{ IMG_WIDTH, IMG_HEIGHT, eImageDepth::Color, eImageModeUI::UI };
@@ -65,6 +74,8 @@ private:
 
 private:
 	vUtil _Util;
+	vGridCtrl _vGridResult;
+	vLog _logMain;
 
 private:
 	vLabel _vLabelLogo;
@@ -75,6 +86,7 @@ private:
 	vIconButton _vBtnMinimize;
 	vIconButton _vBtnExit;
 	vIconButton _btnLoadImg;
+	vIconButton _btnResult;
 
 	CSliderCtrl m_sliderVmin;
 	CSliderCtrl m_sliderVmax;
@@ -92,4 +104,5 @@ public:
 	afx_msg void OnBnClickedButtonLoadImg();
 	afx_msg void OnBnClickedBtnMinimize();
 	afx_msg void OnBnClickedBtnExit();
+	afx_msg void OnBnClickedButtonResult();
 };

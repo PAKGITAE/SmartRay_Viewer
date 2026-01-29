@@ -73,6 +73,8 @@ void CSmartRayViewerDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_BTN_EXIT, _vBtnExit);
 
 	DDX_Control(pDX, IDC_BUTTON_LOAD_IMG, _btnLoadImg);
+	DDX_Control(pDX, IDC_BUTTON_RESULT, _btnResult);
+	
 
 	DDX_Control(pDX, IDC_SLIDER_VMIN, m_sliderVmin);
 	DDX_Control(pDX, IDC_SLIDER_VMAX, m_sliderVmax);
@@ -80,6 +82,7 @@ void CSmartRayViewerDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_LABEL_VMAX, _vLabelvMax);
 
 	DDX_Control(pDX, IDC_IMAGE_VIEW, _image);
+	DDX_Control(pDX, IDC_CUSTOM_RESULT_GRID, _vGridResult);
 
 }
 
@@ -93,6 +96,8 @@ BEGIN_MESSAGE_MAP(CSmartRayViewerDlg, CDialogEx)
 	ON_WM_HSCROLL()
 	ON_BN_CLICKED(IDC_BTN_MINIMIZE, &CSmartRayViewerDlg::OnBnClickedBtnMinimize)
 	ON_BN_CLICKED(IDC_BTN_EXIT, &CSmartRayViewerDlg::OnBnClickedBtnExit)
+	ON_BN_CLICKED(IDC_BUTTON_RESULT, &CSmartRayViewerDlg::OnBnClickedButtonResult)
+	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
 
@@ -128,9 +133,15 @@ BOOL CSmartRayViewerDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
+	WriteLog(LOG_KEY_SYSTEM, L"PGM START");
+
+	InitLog();
 	InitLayout();
-	SetTimers();
+	InitGrid();
 	InitImage();
+	SetTimers();
+
+	WriteLog(LOG_KEY_SYSTEM, L"PGM START Success");
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -205,6 +216,20 @@ void CSmartRayViewerDlg::OnCancel()
 	//CDialogEx::OnCancel();
 }
 
+void CSmartRayViewerDlg::OnDestroy()
+{
+	KillTimers();
+
+	CDialogEx::OnDestroy();
+}
+
+void CSmartRayViewerDlg::InitLog()
+{
+	// Create loggers
+	bool useFlush = true;
+	_logMain.CreateFileLogger(LOG_KEY_SYSTEM, L"D:\\Log\\System\\", useFlush);
+}
+
 void CSmartRayViewerDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	if (nIDEvent == TimerID::UpdateTime) {
@@ -260,6 +285,9 @@ void CSmartRayViewerDlg::InitLayout()
 	UIHelper::InitIconButton(_vBtnExit, L"X", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, AppColor::BUTTON_DOWN_RGB);
 
 	UIHelper::InitIconButton(_btnLoadImg, L"데이터 불러오기", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
+
+	UIHelper::InitIconButton(_btnResult, L"ROI영역 연산", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
+	
 }
 
 void CSmartRayViewerDlg::InitImage()
@@ -269,6 +297,74 @@ void CSmartRayViewerDlg::InitImage()
 	_image.SetUIControlAttached(true);
 	_image.FitImageToScreen();
 	_image.ClearObjAll();
+
+}
+
+void CSmartRayViewerDlg::InitGrid()
+{
+	CFont font;
+	font.CreatePointFont(100, L"SUIT SemiBold ");
+	_vGridResult.SetFont(&font); // GridCtrl 전체에 적용
+
+	_vGridResult.SetFixedRowCount(1);
+	_vGridResult.SetRowCount(1);		//헤더만 생성
+
+	_vGridResult.SetColumnCount(5);		//항목 5개
+
+
+	//가로 폭 조절
+	CRect rt;
+	((CWnd*)(GetDlgItem(IDC_CUSTOM_RESULT_GRID)))->GetWindowRect(&rt);
+	rt.SetRect(rt.left, rt.top, rt.right, rt.bottom);
+	int totalWidth = rt.Width() - 20;
+	int nCellWidth = totalWidth / _vGridResult.GetColumnCount();
+
+	for (int i = 0; i < _vGridResult.GetColumnCount(); i++)
+		_vGridResult.SetColumnWidth(i, nCellWidth);
+
+
+	// 헤더
+	const CStringW headers[5] = { L"No.", L"Avg", L"Max", L"Min", L"Count" };
+
+	for (int i = 0; i < _vGridResult.GetColumnCount(); i++) {
+		GV_ITEM it{};
+		it.mask = GVIF_TEXT | GVIF_FORMAT;
+		it.row = 0; it.col = i;
+		it.nFormat = DT_CENTER | DT_VCENTER | DT_SINGLELINE;
+		it.strText = headers[i];
+		_vGridResult.SetItem(&it);
+		_vGridResult.SetItemState(0, i, _vGridResult.GetItemState(0, i) | GVIS_READONLY);
+		_vGridResult.SetItemBkColour(0, i, AppColor::RGB_SUB_LABEL_BK_COLOR);
+	}
+
+	for (int i = 0; i < _vGridResult.GetRowCount(); ++i)
+		_vGridResult.SetRowHeight(i, 30); // 25픽셀
+
+	_vGridResult.SetHeaderSort(FALSE);
+	_vGridResult.SetEditable(TRUE);				//FALSE : 내용 수정 못함, TRUE : 내용 수정 가능
+	_vGridResult.SetColumnResize(FALSE);		//FALSE : 사용자 변경 불가, TRUE : 사용자 변경 가능
+	_vGridResult.SetRowResize(FALSE);			//FALSE : 사용자 변경 불가, TRUE : 사용자 변경 가능
+
+	_vGridResult.SetFixedBkColor(RGB(240, 240, 240));
+	_vGridResult.SetBkColor(RGB(255, 255, 255));
+	_vGridResult.SetTextBkColor(RGB(255, 255, 255));
+
+	_vGridResult.SetListMode(TRUE);
+
+}
+
+void CSmartRayViewerDlg::ClearGridData()
+{
+	//아래는 전체 지우는거임
+	int nRowCount = _vGridResult.GetRowCount();
+
+	// 1행부터 끝까지 지움 (0행은 헤더)
+	for (int i = nRowCount - 1; i >= 1; --i)
+	{
+		_vGridResult.DeleteRow(i);
+	}
+
+	_vGridResult.Refresh();
 
 }
 
@@ -285,6 +381,7 @@ void CSmartRayViewerDlg::OnBnClickedButtonLoadImg()
 
 	if (!m_zmap.Load(path)) {
 		OutputDebugString(L"[ZMAP] load failed\n");
+		WriteLog(LOG_KEY_SYSTEM, L"[ZMAP] load failed");
 		return;
 	}
 
@@ -292,8 +389,10 @@ void CSmartRayViewerDlg::OnBnClickedButtonLoadImg()
 	uint16_t dataMax = 65535;
 
 	// 데이터 min/max 얻기
-	if (!m_zmap.GetDataMinMax(dataMin, dataMax)) {
+	uint16_t invalidValue = 0;
+	if (!m_zmap.GetDataMinMax(dataMin, dataMax, invalidValue)) {
 		OutputDebugString(L"[ZMAP] min/max failed\n");
+		WriteLog(LOG_KEY_SYSTEM, L"[ZMAP] min/max failed");
 		return;
 	}
 
@@ -304,33 +403,6 @@ void CSmartRayViewerDlg::OnBnClickedButtonLoadImg()
 	m_hasZmap = true;
 
 	UpdateZMapJet();
-
-	// 일단 전체 범위로 렌더
-	if (!m_zmap.RenderJetTo(_image, dataMin, dataMax, 0, cv::Scalar(80, 80, 80))) {
-		OutputDebugString(L"[ZMAP] render failed\n");
-		return;
-	}
-
-	_image.DrawImage(eImageZoomType::NotResizeDraw);
-	_image.DrawObjAll();
-
-
-	CRect roi1 = _image.GetTrackerROI(0);
-
-	CZMapRenderer::ZRoiStats st;
-	if (m_zmap.GetStatsInRoi(roi1, st, /*invalidValue=*/0))
-	{
-		wchar_t buf[256];
-		swprintf_s(buf, L"[ROI] cnt=%lld min=%u max=%u mean=%.2f\n",
-			st.count, st.minv, st.maxv, st.mean);
-		OutputDebugString(buf);
-
-		// 라벨에도 띄우고 싶으면 SetText/Draw
-	}
-	else
-	{
-		OutputDebugString(L"[ROI] stats failed (empty roi or all invalid)\n");
-	}
 
 }
 
@@ -398,6 +470,7 @@ void CSmartRayViewerDlg::UpdateZMapJet()
 
 	if (!m_zmap.RenderJetTo(_image, m_vmin, m_vmax, 0, cv::Scalar(80, 80, 80))) {
 		OutputDebugString(L"[ZMAP] RenderJetTo failed\n");
+		WriteLog(LOG_KEY_SYSTEM, L"[ZMAP] RenderJetTo failed");
 		return;
 	}
 
@@ -419,3 +492,62 @@ void CSmartRayViewerDlg::UpdateZMapValueLabels()
 	_vLabelvMin.Draw();
 	_vLabelvMax.Draw();
 }
+
+void CSmartRayViewerDlg::AddGridMeasure(int RoiNo, ZRoiStats ResultData)
+{
+	int nRow = _vGridResult.GetRowCount();
+	_vGridResult.SetRowCount(nRow + 1);
+
+	CString cols[5];
+	cols[0].Format(L"%d", RoiNo);
+	cols[1].Format(L"%.2f", ResultData.mean);
+	cols[2].Format(L"%hu", ResultData.maxv);
+	cols[3].Format(L"%hu", ResultData.minv);
+	cols[4].Format(L"%lld", ResultData.count);
+
+	for (int c = 0; c < 5; ++c)
+	{
+		_vGridResult.SetItemFormat(
+			nRow, c,
+			DT_CENTER | DT_VCENTER | DT_SINGLELINE
+		);
+		_vGridResult.SetItemText(nRow, c, cols[c]);
+		_vGridResult.SetItemFgColour(nRow, c, RGB(0, 0, 0));
+		_vGridResult.SetItemState(nRow, c, GVIS_READONLY);
+	}
+
+	_vGridResult.SetRowHeight(nRow, 50);
+	_vGridResult.Invalidate();
+}
+
+
+void CSmartRayViewerDlg::OnBnClickedButtonResult()
+{
+	ClearGridData();
+
+	CRect roi1;
+
+	for (int i = 0; i < _image.GetCountTrackerROI(); i++) {
+		roi1 = _image.GetTrackerROI(i);
+
+		ZRoiStats st;
+		if (m_zmap.GetStatsInRoi(roi1, st, /*invalidValue=*/0))
+		{
+			wchar_t buf[256];
+			swprintf_s(buf, L"[ROI] Index=%d cnt=%lld min=%u max=%u mean=%.2f\n",
+				i, st.count, st.minv, st.maxv, st.mean);
+			OutputDebugString(buf);
+			//WriteLog(LOG_KEY_SYSTEM, buf);
+
+			AddGridMeasure(i, st);
+		}
+		else
+		{
+			OutputDebugString(L"[ROI] stats failed (empty roi or all invalid)\n");
+			WriteLog(LOG_KEY_SYSTEM, L"[ROI] stats failed (empty roi or all invalid)");
+		}
+	}
+
+}
+
+

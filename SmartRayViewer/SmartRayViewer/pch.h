@@ -9,8 +9,15 @@
 
 // 여기에 미리 컴파일하려는 헤더 추가
 #include "framework.h"
+#include <string>
 
 #define IMG_WIDTH 5077
 #define IMG_HEIGHT 7450
+
+// LogKey
+const std::wstring LOG_KEY_SYSTEM = L"System";
+const std::wstring LOG_KEY_PROCESS = L"Process";
+const std::wstring LOG_KEY_INSPECT = L"Inspect";
+const std::wstring LOG_KEY_RESULT = L"Result";
 
 #endif //PCH_H

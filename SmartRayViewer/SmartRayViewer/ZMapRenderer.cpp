@@ -9,12 +9,12 @@
 cv::Mat CZMapRenderer::ImreadUnicode(const CString& cstrPath, int flags)
 {
     std::wstring wpath(cstrPath);
-
     std::ifstream fin(wpath, std::ios::binary);
     if (!fin) return cv::Mat();
 
     fin.seekg(0, std::ios::end);
-    const std::streamsize size = fin.tellg();
+    std::streamoff size = fin.tellg();
+    if (size <= 0) return cv::Mat();     // 핵심 가드
     fin.seekg(0, std::ios::beg);
 
     std::vector<uchar> buf((size_t)size);
@@ -89,7 +89,7 @@ bool CZMapRenderer::Load(const CString& path)
     return false;
 }
 
-bool CZMapRenderer::GetDataMinMax(uint16_t& outMin, uint16_t& outMax) const
+bool CZMapRenderer::GetDataMinMax(uint16_t& outMin, uint16_t& outMax, uint16_t invalidValue) const
 {
     if (m_z16.empty() || m_z16.type() != CV_16UC1)
         return false;
@@ -103,10 +103,13 @@ bool CZMapRenderer::GetDataMinMax(uint16_t& outMin, uint16_t& outMax) const
         for (int x = 0; x < m_z16.cols; ++x)
         {
             uint16_t v = row[x];
-            if (v == 0) continue; // 0 제외(기본 정책)
-            if (v < mn) mn = v;
-            if (v > mx) mx = v;
-            any = true;
+            if (v == invalidValue) continue;
+
+            if (!any) { mn = mx = v; any = true; }
+            else {
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+            }
         }
     }
 
@@ -117,6 +120,7 @@ bool CZMapRenderer::GetDataMinMax(uint16_t& outMin, uint16_t& outMax) const
     outMax = mx;
     return true;
 }
+
 
 bool CZMapRenderer::RenderJetTo(
     vImage& dst,
