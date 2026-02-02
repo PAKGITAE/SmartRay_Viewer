@@ -121,7 +121,6 @@ bool CZMapRenderer::GetDataMinMax(uint16_t& outMin, uint16_t& outMax, uint16_t i
     return true;
 }
 
-
 bool CZMapRenderer::RenderJetTo(
     vImage& dst,
     uint16_t vmin,

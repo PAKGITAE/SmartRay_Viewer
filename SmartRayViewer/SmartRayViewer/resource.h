@@ -12,6 +12,7 @@
 #define IDC_LABEL_VERSION               1002
 #define IDC_LABEL_NAME                  1003
 #define IDC_IMAGE_VIEW                  1004
+#define IDC_LABEL_3D_VIEW_TITLE         1005
 #define IDC_BUTTON_LOAD_IMG             1006
 #define IDC_SLIDER_VMIN                 1007
 #define IDC_SLIDER_VMAX                 1008
@@ -20,8 +21,13 @@
 #define IDC_BTN_EXIT                    1011
 #define IDC_BTN_MINIMIZE                1012
 #define IDC_CUSTOM_RESULT_GRID          1013
-#define IDC_BUTTON_LOAD_IMG2            1014
 #define IDC_BUTTON_RESULT               1014
+#define IDC_BUTTON1                     1015
+#define IDC_BUTTON_LOAD_3D_DATA         1015
+#define IDC_VTK_VIEW                    1016
+#define IDC_LABEL_ZMAP_VIEW_TITLE       1017
+#define IDC_BUTTON_LOAD_3D_DATA2        1018
+#define IDC_BUTTON_RESET_3D_POS         1018
 
 // Next default values for new objects
 // 
@@ -29,7 +35,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1014
+#define _APS_NEXT_CONTROL_VALUE         1019
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

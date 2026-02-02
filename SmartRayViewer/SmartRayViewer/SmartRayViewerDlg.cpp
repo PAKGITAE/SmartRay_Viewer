@@ -7,10 +7,12 @@
 #include "SmartRayViewer.h"
 #include "SmartRayViewerDlg.h"
 #include "afxdialogex.h"
+#include <algorithm>
 
 #include <fstream>
 #include <vector>
 
+using namespace std;
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -69,11 +71,16 @@ void CSmartRayViewerDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_LABEL_TIME, _vLabelTime);
 	DDX_Control(pDX, IDC_LABEL_VERSION, _vLabelVersion);
 
+	DDX_Control(pDX, IDC_LABEL_3D_VIEW_TITLE, _vLabel3DTile);
+	DDX_Control(pDX, IDC_LABEL_ZMAP_VIEW_TITLE, _vLabelZmapTitle);
+
 	DDX_Control(pDX, IDC_BTN_MINIMIZE, _vBtnMinimize);
 	DDX_Control(pDX, IDC_BTN_EXIT, _vBtnExit);
 
 	DDX_Control(pDX, IDC_BUTTON_LOAD_IMG, _btnLoadImg);
 	DDX_Control(pDX, IDC_BUTTON_RESULT, _btnResult);
+	DDX_Control(pDX, IDC_BUTTON_LOAD_3D_DATA, _btnLoad3DData);
+	DDX_Control(pDX, IDC_BUTTON_RESET_3D_POS, _btnDefaultPos);
 	
 
 	DDX_Control(pDX, IDC_SLIDER_VMIN, m_sliderVmin);
@@ -83,6 +90,7 @@ void CSmartRayViewerDlg::DoDataExchange(CDataExchange* pDX)
 
 	DDX_Control(pDX, IDC_IMAGE_VIEW, _image);
 	DDX_Control(pDX, IDC_CUSTOM_RESULT_GRID, _vGridResult);
+
 
 }
 
@@ -98,6 +106,8 @@ BEGIN_MESSAGE_MAP(CSmartRayViewerDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_EXIT, &CSmartRayViewerDlg::OnBnClickedBtnExit)
 	ON_BN_CLICKED(IDC_BUTTON_RESULT, &CSmartRayViewerDlg::OnBnClickedButtonResult)
 	ON_WM_DESTROY()
+	ON_BN_CLICKED(IDC_BUTTON_LOAD_3D_DATA, &CSmartRayViewerDlg::OnBnClickedButtonLoad3dData)
+	ON_BN_CLICKED(IDC_BUTTON_RESET_3D_POS, &CSmartRayViewerDlg::OnBnClickedButtonReset3dPos)
 END_MESSAGE_MAP()
 
 
@@ -140,6 +150,9 @@ BOOL CSmartRayViewerDlg::OnInitDialog()
 	InitGrid();
 	InitImage();
 	SetTimers();
+
+	InitializeVTKWindow(GetDlgItem(IDC_VTK_VIEW)->GetSafeHwnd());
+	ResizeVTKWindow();
 
 	WriteLog(LOG_KEY_SYSTEM, L"PGM START Success");
 
@@ -185,6 +198,10 @@ void CSmartRayViewerDlg::OnPaint()
 	else
 	{
 		CDialogEx::OnPaint();
+
+		// ✅ 여기서부터는 "덧그리기"니까 CClientDC 사용
+		CClientDC dc(this);
+		DrawZMapColorBar(&dc);
 	}
 }
 
@@ -280,14 +297,18 @@ void CSmartRayViewerDlg::InitLayout()
 	UIHelper::InitLabel(_vLabelvMin, L"vMin : 0", eLabelAlignH::Right, eLabelAlignV::Center, 16, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, L"", 0);
 	UIHelper::InitLabel(_vLabelvMax, L"vMax : 65535", eLabelAlignH::Right, eLabelAlignV::Center, 16, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, L"", 0);
 
+	UIHelper::InitLabel(_vLabel3DTile, L"Point Cloude 3D Viewer", eLabelAlignH::Center, eLabelAlignV::Center, 24, AppColor::RGB_WHITE, AppColor::RGB_BLACK, L"", 0);
+	UIHelper::InitLabel(_vLabelZmapTitle, L"Zmap ColorMap Viewer & ROI Setting", eLabelAlignH::Center, eLabelAlignV::Center, 24, AppColor::RGB_WHITE, AppColor::RGB_BLACK, L"", 0);
 
 	UIHelper::InitIconButton(_vBtnMinimize, L"ㅡ", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, AppColor::BUTTON_DOWN_RGB);
 	UIHelper::InitIconButton(_vBtnExit, L"X", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, AppColor::BUTTON_DOWN_RGB);
 
 	UIHelper::InitIconButton(_btnLoadImg, L"데이터 불러오기", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
+	UIHelper::InitIconButton(_btnLoad3DData, L"3D 데이터 불러오기", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
+	UIHelper::InitIconButton(_btnDefaultPos, L"기본 위치", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
 
 	UIHelper::InitIconButton(_btnResult, L"ROI영역 연산", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
-	
+
 }
 
 void CSmartRayViewerDlg::InitImage()
@@ -548,6 +569,363 @@ void CSmartRayViewerDlg::OnBnClickedButtonResult()
 		}
 	}
 
+}
+
+void CSmartRayViewerDlg::DrawZMapColorBar(CDC* pDC)
+{
+	// ✅ ZMap 출력 컨트롤 기준으로 위치 잡기
+	CRect rc;
+	GetDlgItem(IDC_IMAGE_VIEW)->GetWindowRect(&rc);
+	ScreenToClient(&rc);  // 중요
+
+	// -----------------------------
+	// 가로 컬러바 위치 (ZMap 아래쪽)
+	// -----------------------------
+	int barHeight = 25;
+
+	CRect barRect(
+		rc.left,
+		rc.bottom + 10,
+		rc.right,
+		rc.bottom + 10 + barHeight
+	);
+
+	// 다이얼로그 밖이면 그냥 리턴(디버깅용 안전장치)
+	CRect client;
+	GetClientRect(&client);
+	if (barRect.bottom > client.bottom)
+		return;
+
+	int width = barRect.Width();
+	if (width <= 1) return;
+
+	// ✅ 좌 -> 우 그라데이션
+	for (int x = 0; x < width; ++x)
+	{
+		double t = (double)x / (width - 1);  // 0~1
+		COLORREF color = GetJetColor(t);
+
+		pDC->FillSolidRect(
+			barRect.left + x,
+			barRect.top,
+			1,
+			barRect.Height(),
+			color
+		);
+	}
+
+	// -----------------------------
+	// 눈금 텍스트 (좌=Min, 우=Max)
+	// -----------------------------
+	pDC->SetBkMode(TRANSPARENT);
+	pDC->SetTextColor(RGB(255, 255, 255));
+
+}
+
+COLORREF CSmartRayViewerDlg::GetJetColor(double t)
+{
+	t = max(0.0, min(1.0, t));
+
+	double r = 0.0, g = 0.0, b = 0.0;
+
+	if (t < 0.5)
+	{
+		// Blue -> Green
+		double u = t / 0.5;   // 0~1
+		r = 0.0;
+		g = u;
+		b = 1.0 - u;
+	}
+	else
+	{
+		// Green -> Red
+		double u = (t - 0.5) / 0.5; // 0~1
+		r = u;
+		g = 1.0 - u;
+		b = 0.0;
+	}
+
+	return RGB((int)(r * 255), (int)(g * 255), (int)(b * 255));
+}
+
+void CSmartRayViewerDlg::OnBnClickedButtonLoad3dData()
+{
+	CFileDialog dlg(TRUE, L"ply", nullptr,
+		OFN_FILEMUSTEXIST,
+		L"Point Cloud (*.ply;*.asc;*.xyz;*.txt)|*.ply;*.asc;*.xyz;*.txt|All Files (*.*)|*.*||",
+		this);
+
+	if (dlg.DoModal() != IDOK)
+		return;
+
+	CString path = dlg.GetPathName();
+
+	if (!LoadPointCloudAuto(path))
+	{
+		AfxMessageBox(L"포인트 클라우드 로드 실패\n(확장자/포맷/데이터를 확인해 주세요)");
+		return;
+	}
+}
+
+void CSmartRayViewerDlg::OnBnClickedButtonReset3dPos()
+{
+	RestoreHomeCamera();
+}
+
+
+
+
+
+
+
+
+
+
+// ============================================================================
+// 3D Point Cloud 로딩 (PLY / ASC(XYZ 텍스트) 자동)
+// - PLY: vtkPLYReader
+// - ASC/XYZ/TXT: 텍스트에서 X Y Z를 읽어 vtkPoints 생성
+// - Point-only 데이터는 vtkVertexGlyphFilter로 verts(셀)를 생성해 항상 보이게 처리
+// ============================================================================
+static CString GetLowerExt(const CString& path)
+{
+	int dot = path.ReverseFind(L'.');
+	if (dot < 0) return L"";
+	CString ext = path.Mid(dot);
+	ext.MakeLower();
+	return ext;
+}
+
+static void ApplyHeightColorByZ(vtkPolyData* poly, vtkPolyDataMapper* mapper)
+{
+	if (!poly || !mapper) return;
+
+	vtkPoints* pts = poly->GetPoints();
+	if (!pts) return;
+
+	vtkIdType n = pts->GetNumberOfPoints();
+	if (n <= 0) return;
+
+	// Z min/max 계산
+	double p[3];
+	double zmin = 0.0, zmax = 0.0;
+	pts->GetPoint(0, p);
+	zmin = zmax = p[2];
+
+	for (vtkIdType i = 1; i < n; ++i)
+	{
+		pts->GetPoint(i, p);
+		zmin = std::min(zmin, p[2]);
+		zmax = std::max(zmax, p[2]);
+	}
+	if (zmin == zmax) zmax = zmin + 1.0; // 안전장치
+
+	// 각 포인트의 Z를 스칼라로 저장
+	vtkNew<vtkFloatArray> scalars;
+	scalars->SetName("HeightZ");
+	scalars->SetNumberOfComponents(1);
+	scalars->SetNumberOfTuples(n);
+
+	for (vtkIdType i = 0; i < n; ++i)
+	{
+		pts->GetPoint(i, p);
+		scalars->SetValue(i, static_cast<float>(p[2]));
+	}
+
+	poly->GetPointData()->SetScalars(scalars);
+
+	// 컬러맵 (LUT)
+	vtkNew<vtkLookupTable> lut;
+	lut->SetNumberOfTableValues(256);
+	lut->Build();
+
+	// 기본 LUT는 파랑->빨강 계열. 원하면 커스터마이즈 가능
+	mapper->SetLookupTable(lut);
+	mapper->SetScalarRange(zmin, zmax);
+	mapper->ScalarVisibilityOn();
+	mapper->SetColorModeToMapScalars();
+	mapper->SetScalarModeToUsePointData();
+}
+
+bool CSmartRayViewerDlg::LoadPointCloudAuto(const CString& path)
+{
+	if (!m_vtkRenderer)
+		return false;
+
+	CString ext = GetLowerExt(path);
+
+	vtkSmartPointer<vtkPolyData> poly = vtkSmartPointer<vtkPolyData>::New();
+
+	if (ext == L".ply")
+	{
+		CStringA aPath(path);
+		vtkNew<vtkPLYReader> reader;
+		reader->SetFileName(aPath.GetString());
+		reader->Update();
+
+		poly->ShallowCopy(reader->GetOutput());
+	}
+	else if (ext == L".asc" || ext == L".xyz" || ext == L".txt")
+	{
+		CStringA aPath(path);
+		std::ifstream ifs(aPath.GetString());
+		if (!ifs.is_open())
+			return false;
+
+		vtkNew<vtkPoints> pts;
+
+		std::string line;
+		double x, y, z;
+
+		while (std::getline(ifs, line))
+		{
+			if (line.empty())
+				continue;
+
+			// 주석/헤더 라인 스킵
+			if (!line.empty() && (line[0] == '#'))
+				continue;
+
+			std::istringstream iss(line);
+			if (!(iss >> x >> y >> z))
+				continue;
+
+			pts->InsertNextPoint(x, y, z);
+		}
+
+		poly->SetPoints(pts);
+	}
+	else
+	{
+		// 지원하지 않는 확장자
+		return false;
+	}
+
+	const vtkIdType nPts = poly->GetNumberOfPoints();
+	if (nPts <= 0)
+		return false;
+
+	// ✅ point-only(셀 0개) 포함 모든 케이스에서 "항상 보이게" verts 생성
+	vtkNew<vtkVertexGlyphFilter> glyph;
+	glyph->SetInputData(poly);
+	glyph->Update();
+
+	vtkNew<vtkPolyDataMapper> mapper;
+	mapper->SetInputConnection(glyph->GetOutputPort());
+
+	ApplyHeightColorByZ(poly, mapper);
+
+	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+	actor->SetMapper(mapper);
+
+	// 점 클라우드로 보기 좋게
+	actor->GetProperty()->SetRepresentationToPoints();
+	actor->GetProperty()->SetPointSize(1.0);
+	actor->GetProperty()->LightingOff();
+
+	// 기존 Actor 제거 후 교체
+	if (m_vtkActor)
+		m_vtkRenderer->RemoveActor(m_vtkActor);
+
+	m_vtkActor = actor;
+	m_vtkRenderer->AddActor(m_vtkActor);
+
+	m_vtkRenderer->ResetCamera();
+	m_vtkRenderWindow->Render();
+
+	SaveHomeCamera();
+
+	auto* scal = poly->GetPointData()->GetScalars();
+	OutputDebugString(scal ? L"[Cloud] has scalars(color)\n" : L"[Cloud] no scalars\n");
+
+	// 디버그 출력
+	wchar_t buf[256];
+	swprintf_s(buf, L"[Cloud] ext=%s points=%lld cells=%lld\n",
+		ext.GetString(), (long long)poly->GetNumberOfPoints(), (long long)poly->GetNumberOfCells());
+	OutputDebugString(buf);
+
+	return true;
+}
+
+void CSmartRayViewerDlg::InitializeVTKWindow(void* hWnd)
+{
+	vtkNew<vtkRenderWindowInteractor> interactor;
+	interactor->SetInteractorStyle(
+		vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New()
+	);
+
+	m_vtkRenderer = vtkSmartPointer<vtkRenderer>::New();
+	m_vtkRenderer->SetBackground(0.1, 0.2, 0.3);
+
+	m_vtkRenderWindow->SetParentId(hWnd);
+	m_vtkRenderWindow->SetInteractor(interactor);
+	m_vtkRenderWindow->AddRenderer(m_vtkRenderer);
+
+	// ===============================
+	// ✅ 방향 표시용 Axes (X/Y/Z)
+	// ===============================
+	m_axesActor = vtkSmartPointer<vtkAxesActor>::New();
+	m_axesActor->SetTotalLength(1.0, 1.0, 1.0); // 축 길이
+	m_axesActor->SetShaftTypeToCylinder();
+	m_axesActor->SetCylinderRadius(0.03);
+
+	m_axesActor->GetXAxisCaptionActor2D()->GetTextActor()->SetTextScaleModeToNone();
+	m_axesActor->GetYAxisCaptionActor2D()->GetTextActor()->SetTextScaleModeToNone();
+	m_axesActor->GetZAxisCaptionActor2D()->GetTextActor()->SetTextScaleModeToNone();
+
+	// ===============================
+	// ✅ Orientation Marker Widget
+	// ===============================
+	m_axesWidget = vtkSmartPointer<vtkOrientationMarkerWidget>::New();
+	m_axesWidget->SetOrientationMarker(m_axesActor);
+	m_axesWidget->SetInteractor(interactor);
+
+	// 화면 위치 (좌하단)
+	m_axesWidget->SetViewport(
+		0.85,  // xmin → 더 오른쪽
+		0.01,  // ymin → 거의 바닥
+		0.99,  // xmax
+		0.15   // ymax
+	);
+
+	m_axesWidget->SetEnabled(1);
+	m_axesWidget->InteractiveOff(); // 마우스로 안 움직이게
+
+	m_vtkRenderWindow->Render();
+}
+
+void CSmartRayViewerDlg::ResizeVTKWindow()
+{
+	CRect rc;
+	GetDlgItem(IDC_VTK_VIEW)->GetClientRect(rc);
+	m_vtkRenderWindow->SetSize(rc.Width(), rc.Height());
+}
+
+void CSmartRayViewerDlg::SaveHomeCamera()
+{
+	if (!m_vtkRenderer) return;
+
+	vtkCamera* cam = m_vtkRenderer->GetActiveCamera();
+	if (!cam) return;
+
+	if (!m_homeCamera)
+		m_homeCamera = vtkSmartPointer<vtkCamera>::New();
+
+	m_homeCamera->DeepCopy(cam);   // ✅ 현재 카메라 상태를 복사 저장
+	m_hasHomeCamera = true;
+}
+
+void CSmartRayViewerDlg::RestoreHomeCamera()
+{
+	if (!m_vtkRenderer || !m_vtkRenderWindow) return;
+	if (!m_hasHomeCamera || !m_homeCamera) return;
+
+	vtkCamera* cam = m_vtkRenderer->GetActiveCamera();
+	cam->DeepCopy(m_homeCamera);
+
+	// 클리핑도 맞춰주는 게 보통 안정적
+	m_vtkRenderer->ResetCameraClippingRange();
+	m_vtkRenderWindow->Render();
 }
 
 
