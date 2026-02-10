@@ -24,6 +24,9 @@ public:
 public:
 	virtual BOOL InitInstance();
 
+private:
+	void InitializeSystem();
+
 // 구현입니다.
 
 	DECLARE_MESSAGE_MAP()

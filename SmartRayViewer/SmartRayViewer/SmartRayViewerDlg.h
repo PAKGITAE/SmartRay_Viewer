@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include "vLabel.h"
-#include "vIconButton.h"
 #include "vGridCtrl.h"
 #include "vUtil.h"
-#include "vLog.h"
 #include "vImage.h"
 
 #include "UIHelper.h"
@@ -16,33 +13,16 @@
 #include "TimerDefine.h"
 
 #include "ZMapRenderer.h"
+#include "VtkPointCloudView.h"
 
-#define vtkRenderingCore_AUTOINIT 3(vtkRenderingOpenGL2,vtkInteractionStyle, vtkRenderingFreeType)
-#define vtkRenderingContext2D_AUTOINIT 1(vtkRenderingContextOpenGL2)
+#include "LogManager.h"
+#include "DlgLog.h"
+#include "DlgParam.h"
 
-#include <vtkAutoInit.h>
-#include <vtkRenderer.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkInteractorStyleTrackballCamera.h>
-#include <vtkRenderWindow.h>
-#include <vtkSmartPointer.h>
-#include <vtkPLYReader.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkActor.h>
-#include <vtkVertexGlyphFilter.h>
-#include <vtkProperty.h>
+#include "SmartRaySensor.h"
 
-#include <vtkAxesActor.h>
-#include <vtkOrientationMarkerWidget.h>
-#include <vtkCaptionActor2D.h>
-#include <vtkTextActor.h>
-
-#include <vtkCamera.h>
-
-#include <vtkFloatArray.h>
-#include <vtkPointData.h>
-#include <vtkLookupTable.h>
-
+constexpr UINT WM_PCFRAME_READY = WM_APP + 10;
+constexpr double INVALID = -999999.0;
 
 // CSmartRayViewerDlg 대화 상자
 class CSmartRayViewerDlg : public CDialogEx
@@ -82,13 +62,12 @@ public:
 	void SetTimers();
 	void KillTimers();
 
-	void InitLog();
-	void WriteLog(std::wstring logKey, std::wstring logMsg) { _logMain.PushLog(logKey, logMsg); }
+	void InitClass();
 
 	void InitLayout();
 	void InitGrid();
 	void ClearGridData();
-	void AddGridMeasure(int RoiNo, ZRoiStats ResultData);
+	void AddGridMeasurePC(int RoiNo, const HeightStats& st);
 
 private:
 
@@ -98,6 +77,8 @@ private:
 	uint16_t m_vmin = 1;
 	uint16_t m_vmax = 65535;
 	bool m_hasZmap = false;
+
+	void DrawMonitoringSignalOnOff(int nCtrlID, COLORREF color);
 
 	// 이미지 뷰어
 	void InitImage();
@@ -114,7 +95,10 @@ private:
 private:
 	vUtil _Util;
 	vGridCtrl _vGridResult;
-	vLog _logMain;
+
+	DlgLog _dlgLog;
+	DlgParam* _dlgParam;
+
 
 private:
 	vLabel _vLabelLogo;
@@ -130,7 +114,18 @@ private:
 	vIconButton _btnLoadImg;
 	vIconButton _btnResult;
 	vIconButton _btnLoad3DData;
-	vIconButton _btnDefaultPos;
+
+	vIconButton _btnStart;
+	vIconButton _btnStop;
+	vIconButton _btnSetting;
+
+	vIconButton _btnTopView;
+	vIconButton _btnFrontView;
+	vIconButton _btnSideLeftView;
+
+
+	vLabel _labelConnectSensor1;
+	vLabel _labelConnectSensor2;
 
 	CSliderCtrl m_sliderVmin;
 	CSliderCtrl m_sliderVmax;
@@ -138,25 +133,13 @@ private:
 	vLabel _vLabelvMax;
 
 private:
-	vtkNew<vtkRenderWindow> m_vtkRenderWindow;
+	CVtkPointCloudView m_vtkView;
+	afx_msg LRESULT OnPcFrameReady(WPARAM, LPARAM);
 
-	// ✅ Renderer/Actor는 1개만 유지해서 누적(AddRenderer) 문제 방지
-	vtkSmartPointer<vtkRenderer> m_vtkRenderer;
-	vtkSmartPointer<vtkActor>    m_vtkActor;   // 현재 표시 중인 Actor(교체용)
-
-	vtkSmartPointer<vtkAxesActor> m_axesActor;
-	vtkSmartPointer<vtkOrientationMarkerWidget> m_axesWidget;
-
-	vtkSmartPointer<vtkCamera> m_homeCamera;  // 초기 시점 저장용
-	bool m_hasHomeCamera = false;
-	void SaveHomeCamera();
-	void RestoreHomeCamera();
-
-	// 파일 확장자에 따라 PLY / ASC(XYZ 텍스트) 자동 로딩
-	bool LoadPointCloudAuto(const CString& path);
-
-	void InitializeVTKWindow(void* hWnd);
-	void ResizeVTKWindow();
+private:
+	void InitSensor();
+	SmartRaySensor m_Sensor;
+	SmartRaySensor m_Sensor2;
 
 public:
 	afx_msg void OnBnClickedButtonLoadImg();
@@ -164,5 +147,10 @@ public:
 	afx_msg void OnBnClickedBtnExit();
 	afx_msg void OnBnClickedButtonResult();
 	afx_msg void OnBnClickedButtonLoad3dData();
-	afx_msg void OnBnClickedButtonReset3dPos();
+	afx_msg void OnBnClickedButtonStart();
+	afx_msg void OnBnClickedButtonStop();
+	afx_msg void OnBnClickedButtonSetting();
+	afx_msg void OnBnClickedButtonTopView();
+	afx_msg void OnBnClickedButtonFrontView();
+	afx_msg void OnBnClickedButtonSideLeftView();
 };

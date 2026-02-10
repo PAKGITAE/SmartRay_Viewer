@@ -7,6 +7,8 @@
 #define IDS_ABOUTBOX                    101
 #define IDD_SMARTRAYVIEWER_DIALOG       102
 #define IDR_MAINFRAME                   128
+#define IDD_DLG_LOG                     130
+#define IDD_DLG_PARAM                   132
 #define IDC_LABEL_LOGO                  1000
 #define IDC_LABEL_TIME                  1001
 #define IDC_LABEL_VERSION               1002
@@ -24,18 +26,32 @@
 #define IDC_BUTTON_RESULT               1014
 #define IDC_BUTTON1                     1015
 #define IDC_BUTTON_LOAD_3D_DATA         1015
+#define IDC_BUTTON_PARAM_SAVE           1015
+#define IDC_BUTTON_DELETE_LOG           1015
 #define IDC_VTK_VIEW                    1016
 #define IDC_LABEL_ZMAP_VIEW_TITLE       1017
-#define IDC_BUTTON_LOAD_3D_DATA2        1018
-#define IDC_BUTTON_RESET_3D_POS         1018
+#define IDC_LABEL_SENSOR_CONNECT_1      1019
+#define IDC_LABEL_SENSOR_CONNECT_2      1020
+#define IDC_SIGNAL_SENSOR_CONNECT_1     1021
+#define IDC_SIGNAL_SENSOR_CONNECT_2     1022
+#define IDC_BUTTON_START                1023
+#define IDC_BUTTON_STOP                 1024
+#define IDC_BUTTON_FRONT_VIEW           1025
+#define IDC_LIST_LOG                    1026
+#define IDC_BUTTON_SIDE_LEFT_VIEW       1026
+#define IDC_LOG_AREA                    1027
+#define IDC_CUSTOM_GRID                 1028
+#define IDC_BUTTON_FRONT_VIEW3          1028
+#define IDC_BUTTON_TOP_VIEW             1028
+#define IDC_BUTTON_SETTING              1029
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        130
+#define _APS_NEXT_RESOURCE_VALUE        134
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1019
+#define _APS_NEXT_CONTROL_VALUE         1030
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

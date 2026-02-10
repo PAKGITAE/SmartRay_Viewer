@@ -95,13 +95,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(VISIONPACKAGE_INC);$(VLIB_INC);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VISIONPACKAGE_INC);$(VLIB_INC);C:\SmartRay\SmartRay DevKit\SR_API\Win_x64_MSVC_19\include\sr_api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>$(VLIB_LIB_DEBUG);$(VISIONPACKAGE_LIB);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>vThreadPoold.lib;vLabeld.lib;vParameterd.lib;vUtild.lib;vFileStreamd.lib;vGridCtrld.lib;vIconButtond.lib;vLogd.lib;vImaged.lib;opencv_world4100d.lib;vtkcgns-9.5d.lib;vtkChartsCore-9.5d.lib;vtkCommonColor-9.5d.lib;vtkCommonComputationalGeometry-9.5d.lib;vtkCommonCore-9.5d.lib;vtkCommonDataModel-9.5d.lib;vtkCommonExecutionModel-9.5d.lib;vtkCommonMath-9.5d.lib;vtkCommonMisc-9.5d.lib;vtkCommonSystem-9.5d.lib;vtkCommonTransforms-9.5d.lib;vtkDICOMParser-9.5d.lib;vtkDomainsChemistry-9.5d.lib;vtkDomainsChemistryOpenGL2-9.5d.lib;vtkdoubleconversion-9.5d.lib;vtkexodusII-9.5d.lib;vtkexpat-9.5d.lib;vtkFiltersAMR-9.5d.lib;vtkFiltersCellGrid-9.5d.lib;vtkFiltersCore-9.5d.lib;vtkFiltersExtraction-9.5d.lib;vtkFiltersFlowPaths-9.5d.lib;vtkFiltersGeneral-9.5d.lib;vtkFiltersGeneric-9.5d.lib;vtkFiltersGeometry-9.5d.lib;vtkFiltersGeometryPreview-9.5d.lib;vtkFiltersHybrid-9.5d.lib;vtkFiltersHyperTree-9.5d.lib;vtkFiltersImaging-9.5d.lib;vtkFiltersModeling-9.5d.lib;vtkFiltersParallel-9.5d.lib;vtkFiltersParallelImaging-9.5d.lib;vtkFiltersPoints-9.5d.lib;vtkFiltersProgrammable-9.5d.lib;vtkFiltersReduction-9.5d.lib;vtkFiltersSelection-9.5d.lib;vtkFiltersSMP-9.5d.lib;vtkFiltersSources-9.5d.lib;vtkFiltersStatistics-9.5d.lib;vtkFiltersTemporal-9.5d.lib;vtkFiltersTensor-9.5d.lib;vtkFiltersTexture-9.5d.lib;vtkFiltersTopology-9.5d.lib;vtkFiltersVerdict-9.5d.lib;vtkfmt-9.5d.lib;vtkfreetype-9.5d.lib;vtkGeovisCore-9.5d.lib;vtkgl2ps-9.5d.lib;vtkglad-9.5d.lib;vtkhdf5-9.5d.lib;vtkhdf5_hl-9.5d.lib;vtkImagingColor-9.5d.lib;vtkImagingCore-9.5d.lib;vtkImagingFourier-9.5d.lib;vtkImagingGeneral-9.5d.lib;vtkImagingHybrid-9.5d.lib;vtkImagingMath-9.5d.lib;vtkImagingMorphological-9.5d.lib;vtkImagingSources-9.5d.lib;vtkImagingStatistics-9.5d.lib;vtkImagingStencil-9.5d.lib;vtkInfovisCore-9.5d.lib;vtkInfovisLayout-9.5d.lib;vtkInteractionImage-9.5d.lib;vtkInteractionStyle-9.5d.lib;vtkInteractionWidgets-9.5d.lib;vtkIOAMR-9.5d.lib;vtkIOAsynchronous-9.5d.lib;vtkIOCellGrid-9.5d.lib;vtkIOCesium3DTiles-9.5d.lib;vtkIOCGNSReader-9.5d.lib;vtkIOChemistry-9.5d.lib;vtkIOCityGML-9.5d.lib;vtkIOCONVERGECFD-9.5d.lib;vtkIOCore-9.5d.lib;vtkIOEngys-9.5d.lib;vtkIOEnSight-9.5d.lib;vtkIOERF-9.5d.lib;vtkIOExodus-9.5d.lib;vtkIOExport-9.5d.lib;vtkIOExportGL2PS-9.5d.lib;vtkIOExportPDF-9.5d.lib;vtkIOFDS-9.5d.lib;vtkIOFLUENTCFF-9.5d.lib;vtkIOGeometry-9.5d.lib;vtkIOHDF-9.5d.lib;vtkIOImage-9.5d.lib;vtkIOImport-9.5d.lib;vtkIOInfovis-9.5d.lib;vtkIOIOSS-9.5d.lib;vtkIOLANLX3D-9.5d.lib;vtkIOLegacy-9.5d.lib;vtkIOLSDyna-9.5d.lib;vtkIOMINC-9.5d.lib;vtkIOMotionFX-9.5d.lib;vtkIOMovie-9.5d.lib;vtkIONetCDF-9.5d.lib;vtkIOOggTheora-9.5d.lib;vtkIOParallel-9.5d.lib;vtkIOParallelXML-9.5d.lib;vtkIOPLY-9.5d.lib;vtkIOSegY-9.5d.lib;vtkIOSQL-9.5d.lib;vtkioss-9.5d.lib;vtkIOTecplotTable-9.5d.lib;vtkIOVeraOut-9.5d.lib;vtkIOVideo-9.5d.lib;vtkIOXML-9.5d.lib;vtkIOXMLParser-9.5d.lib;vtkjpeg-9.5d.lib;vtkjsoncpp-9.5d.lib;vtkkissfft-9.5d.lib;vtklibharu-9.5d.lib;vtklibproj-9.5d.lib;vtklibxml2-9.5d.lib;vtkloguru-9.5d.lib;vtklz4-9.5d.lib;vtklzma-9.5d.lib;vtkmetaio-9.5d.lib;vtknetcdf-9.5d.lib;vtkogg-9.5d.lib;vtkParallelCore-9.5d.lib;vtkParallelDIY-9.5d.lib;vtkpng-9.5d.lib;vtkpugixml-9.5d.lib;vtkRenderingAnnotation-9.5d.lib;vtkRenderingCellGrid-9.5d.lib;vtkRenderingContext2D-9.5d.lib;vtkRenderingContextOpenGL2-9.5d.lib;vtkRenderingCore-9.5d.lib;vtkRenderingFreeType-9.5d.lib;vtkRenderingGL2PSOpenGL2-9.5d.lib;vtkRenderingGridAxes-9.5d.lib;vtkRenderingHyperTreeGrid-9.5d.lib;vtkRenderingImage-9.5d.lib;vtkRenderingLabel-9.5d.lib;vtkRenderingLICOpenGL2-9.5d.lib;vtkRenderingLOD-9.5d.lib;vtkRenderingOpenGL2-9.5d.lib;vtkRenderingSceneGraph-9.5d.lib;vtkRenderingUI-9.5d.lib;vtkRenderingVolume-9.5d.lib;vtkRenderingVolumeOpenGL2-9.5d.lib;vtkRenderingVtkJS-9.5d.lib;vtksqlite-9.5d.lib;vtksys-9.5d.lib;vtkTestingCore-9.5d.lib;vtkTestingRendering-9.5d.lib;vtktheora-9.5d.lib;vtktiff-9.5d.lib;vtktoken-9.5d.lib;vtkverdict-9.5d.lib;vtkViewsContext2D-9.5d.lib;vtkViewsCore-9.5d.lib;vtkViewsInfovis-9.5d.lib;vtkWrappingTools-9.5d.lib;vtkzlib-9.5d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(VLIB_LIB_DEBUG);$(VISIONPACKAGE_LIB);C:\SmartRay\SmartRay DevKit\SR_API\Win_x64_MSVC_19\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>vThreadPoold.lib;vLabeld.lib;vParameterd.lib;vUtild.lib;vFileStreamd.lib;vGridCtrld.lib;vIconButtond.lib;vLogd.lib;vImaged.lib;vListCtrld.lib;opencv_world4100d.lib;vtkcgns-9.5d.lib;vtkChartsCore-9.5d.lib;vtkCommonColor-9.5d.lib;vtkCommonComputationalGeometry-9.5d.lib;vtkCommonCore-9.5d.lib;vtkCommonDataModel-9.5d.lib;vtkCommonExecutionModel-9.5d.lib;vtkCommonMath-9.5d.lib;vtkCommonMisc-9.5d.lib;vtkCommonSystem-9.5d.lib;vtkCommonTransforms-9.5d.lib;vtkDICOMParser-9.5d.lib;vtkDomainsChemistry-9.5d.lib;vtkDomainsChemistryOpenGL2-9.5d.lib;vtkdoubleconversion-9.5d.lib;vtkexodusII-9.5d.lib;vtkexpat-9.5d.lib;vtkFiltersAMR-9.5d.lib;vtkFiltersCellGrid-9.5d.lib;vtkFiltersCore-9.5d.lib;vtkFiltersExtraction-9.5d.lib;vtkFiltersFlowPaths-9.5d.lib;vtkFiltersGeneral-9.5d.lib;vtkFiltersGeneric-9.5d.lib;vtkFiltersGeometry-9.5d.lib;vtkFiltersGeometryPreview-9.5d.lib;vtkFiltersHybrid-9.5d.lib;vtkFiltersHyperTree-9.5d.lib;vtkFiltersImaging-9.5d.lib;vtkFiltersModeling-9.5d.lib;vtkFiltersParallel-9.5d.lib;vtkFiltersParallelImaging-9.5d.lib;vtkFiltersPoints-9.5d.lib;vtkFiltersProgrammable-9.5d.lib;vtkFiltersReduction-9.5d.lib;vtkFiltersSelection-9.5d.lib;vtkFiltersSMP-9.5d.lib;vtkFiltersSources-9.5d.lib;vtkFiltersStatistics-9.5d.lib;vtkFiltersTemporal-9.5d.lib;vtkFiltersTensor-9.5d.lib;vtkFiltersTexture-9.5d.lib;vtkFiltersTopology-9.5d.lib;vtkFiltersVerdict-9.5d.lib;vtkfmt-9.5d.lib;vtkfreetype-9.5d.lib;vtkGeovisCore-9.5d.lib;vtkgl2ps-9.5d.lib;vtkglad-9.5d.lib;vtkhdf5-9.5d.lib;vtkhdf5_hl-9.5d.lib;vtkImagingColor-9.5d.lib;vtkImagingCore-9.5d.lib;vtkImagingFourier-9.5d.lib;vtkImagingGeneral-9.5d.lib;vtkImagingHybrid-9.5d.lib;vtkImagingMath-9.5d.lib;vtkImagingMorphological-9.5d.lib;vtkImagingSources-9.5d.lib;vtkImagingStatistics-9.5d.lib;vtkImagingStencil-9.5d.lib;vtkInfovisCore-9.5d.lib;vtkInfovisLayout-9.5d.lib;vtkInteractionImage-9.5d.lib;vtkInteractionStyle-9.5d.lib;vtkInteractionWidgets-9.5d.lib;vtkIOAMR-9.5d.lib;vtkIOAsynchronous-9.5d.lib;vtkIOCellGrid-9.5d.lib;vtkIOCesium3DTiles-9.5d.lib;vtkIOCGNSReader-9.5d.lib;vtkIOChemistry-9.5d.lib;vtkIOCityGML-9.5d.lib;vtkIOCONVERGECFD-9.5d.lib;vtkIOCore-9.5d.lib;vtkIOEngys-9.5d.lib;vtkIOEnSight-9.5d.lib;vtkIOERF-9.5d.lib;vtkIOExodus-9.5d.lib;vtkIOExport-9.5d.lib;vtkIOExportGL2PS-9.5d.lib;vtkIOExportPDF-9.5d.lib;vtkIOFDS-9.5d.lib;vtkIOFLUENTCFF-9.5d.lib;vtkIOGeometry-9.5d.lib;vtkIOHDF-9.5d.lib;vtkIOImage-9.5d.lib;vtkIOImport-9.5d.lib;vtkIOInfovis-9.5d.lib;vtkIOIOSS-9.5d.lib;vtkIOLANLX3D-9.5d.lib;vtkIOLegacy-9.5d.lib;vtkIOLSDyna-9.5d.lib;vtkIOMINC-9.5d.lib;vtkIOMotionFX-9.5d.lib;vtkIOMovie-9.5d.lib;vtkIONetCDF-9.5d.lib;vtkIOOggTheora-9.5d.lib;vtkIOParallel-9.5d.lib;vtkIOParallelXML-9.5d.lib;vtkIOPLY-9.5d.lib;vtkIOSegY-9.5d.lib;vtkIOSQL-9.5d.lib;vtkioss-9.5d.lib;vtkIOTecplotTable-9.5d.lib;vtkIOVeraOut-9.5d.lib;vtkIOVideo-9.5d.lib;vtkIOXML-9.5d.lib;vtkIOXMLParser-9.5d.lib;vtkjpeg-9.5d.lib;vtkjsoncpp-9.5d.lib;vtkkissfft-9.5d.lib;vtklibharu-9.5d.lib;vtklibproj-9.5d.lib;vtklibxml2-9.5d.lib;vtkloguru-9.5d.lib;vtklz4-9.5d.lib;vtklzma-9.5d.lib;vtkmetaio-9.5d.lib;vtknetcdf-9.5d.lib;vtkogg-9.5d.lib;vtkParallelCore-9.5d.lib;vtkParallelDIY-9.5d.lib;vtkpng-9.5d.lib;vtkpugixml-9.5d.lib;vtkRenderingAnnotation-9.5d.lib;vtkRenderingCellGrid-9.5d.lib;vtkRenderingContext2D-9.5d.lib;vtkRenderingContextOpenGL2-9.5d.lib;vtkRenderingCore-9.5d.lib;vtkRenderingFreeType-9.5d.lib;vtkRenderingGL2PSOpenGL2-9.5d.lib;vtkRenderingGridAxes-9.5d.lib;vtkRenderingHyperTreeGrid-9.5d.lib;vtkRenderingImage-9.5d.lib;vtkRenderingLabel-9.5d.lib;vtkRenderingLICOpenGL2-9.5d.lib;vtkRenderingLOD-9.5d.lib;vtkRenderingOpenGL2-9.5d.lib;vtkRenderingSceneGraph-9.5d.lib;vtkRenderingUI-9.5d.lib;vtkRenderingVolume-9.5d.lib;vtkRenderingVolumeOpenGL2-9.5d.lib;vtkRenderingVtkJS-9.5d.lib;vtksqlite-9.5d.lib;vtksys-9.5d.lib;vtkTestingCore-9.5d.lib;vtkTestingRendering-9.5d.lib;vtktheora-9.5d.lib;vtktiff-9.5d.lib;vtktoken-9.5d.lib;vtkverdict-9.5d.lib;vtkViewsContext2D-9.5d.lib;vtkViewsCore-9.5d.lib;vtkViewsInfovis-9.5d.lib;vtkWrappingTools-9.5d.lib;vtkzlib-9.5d.lib;SR_API-x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -189,27 +189,44 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AppStore.h" />
     <ClInclude Include="ColorDefine.h" />
+    <ClInclude Include="Common.h" />
+    <ClInclude Include="DlgLog.h" />
+    <ClInclude Include="DlgParam.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="GrabHelper.h" />
+    <ClInclude Include="LogManager.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="Result.h" />
+    <ClInclude Include="SmartRaySensor.h" />
     <ClInclude Include="SmartRayViewer.h" />
     <ClInclude Include="SmartRayViewerDlg.h" />
+    <ClInclude Include="SR_Common.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TimerDefine.h" />
     <ClInclude Include="UIHelper.h" />
+    <ClInclude Include="VtkPointCloudView.h" />
     <ClInclude Include="ZMapRenderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DlgLog.cpp" />
+    <ClCompile Include="DlgParam.cpp" />
+    <ClCompile Include="GrabHelper.cpp" />
+    <ClCompile Include="LogManager.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Result.cpp" />
+    <ClCompile Include="SmartRaySensor.cpp" />
     <ClCompile Include="SmartRayViewer.cpp" />
     <ClCompile Include="SmartRayViewerDlg.cpp" />
     <ClCompile Include="UIHelper.cpp" />
+    <ClCompile Include="VtkPointCloudView.cpp" />
     <ClCompile Include="ZMapRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>

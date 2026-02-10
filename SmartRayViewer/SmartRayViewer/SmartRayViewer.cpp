@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "SmartRayViewer.h"
 #include "SmartRayViewerDlg.h"
+#include "Common.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -51,6 +52,9 @@ BOOL CSmartRayViewerApp::InitInstance()
 	InitCommonControlsEx(&InitCtrls);
 
 	CWinApp::InitInstance();
+
+	// 시스템 초기화 (폴더 생성 → 파라미터 로드 → LogManager 초기화)
+	InitializeSystem();
 
 
 	AfxEnableControlContainer();
@@ -105,3 +109,21 @@ BOOL CSmartRayViewerApp::InitInstance()
 	return FALSE;
 }
 
+void CSmartRayViewerApp::InitializeSystem()
+{
+	// 1. 시스템 폴더 생성
+	std::wstring systemPath = CombinePath(GetBasePath(), SysConstants::SysFolderName);
+	CreateDirectoryW(systemPath.c_str(), nullptr);
+
+	std::wstring logPath = L"D:\\Log";
+
+	// 4. LogManager 초기화
+	LogManager& logMgr = LogManager::GetInstance();
+	logMgr.Initialize(logPath, true);
+
+	// 초기화 로그
+	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"=== Application Started ===");
+	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"ExePath: " + GetBasePath());
+	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"SystemPath: " + systemPath);
+	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"LogPath: " + logPath);
+}

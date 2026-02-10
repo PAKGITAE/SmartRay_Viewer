@@ -7,6 +7,6 @@
 namespace TimerID
 {
     static const UINT UpdateTime = 1001; // 시간
-    static const UINT UpdateState = 1002; // UI 실시간 상태 업데이트
+    static const UINT UpdateConnect = 1002; // UI 실시간 상태 업데이트
 
 }

@@ -38,15 +38,22 @@ namespace UIHelper
 	{
 		std::wstring wfont = L"SUIT SemiBold";
 
+		namespace fs = std::filesystem;
+		fs::path exePath = fs::current_path();
+
+		fs::path iconfullPath = exePath / L"icon" / iconPath;
+
 		btn.SetButtonType(eButtonType::kNormal);
-		//btn.SetPngIcon(eBgType::kBgNormal, iconPath.c_str());
+		btn.SetPngIcon(eBgType::kBgNormal, iconfullPath.c_str());
 		btn.SetBackground(eBgType::kBgNormal, bgColor);
 
-		if (isFocus)
+		if (isFocus) {
 			btn.SetBackground(eBgType::kBgFocus, bgFocusColor);
+			btn.SetPngIcon(eBgType::kBgFocus, iconfullPath.c_str());
+		}
 
-		//btn.SetIconAlign(eIconButtonAlignH::Left, eIconButtonAlignV::Center);
-		//btn.SetIconMargin(10);
+		btn.SetIconAlign(eIconButtonAlignH::Left, eIconButtonAlignV::Center);
+		btn.SetIconMargin(7);
 		btn.SetTextType(fontSize, fontColor, wfont, eIconButtonAlignH::Center, eIconButtonAlignV::Center);
 		btn.SetTextOffset(0, 0);
 		btn.SetText(text.c_str());
