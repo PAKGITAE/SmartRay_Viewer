@@ -7,11 +7,9 @@ class DlgLog;  // 전방 선언 (LogManager에서 DlgLog 접근용)
 
 // 로그 키 상수 정의
 namespace Log {
-    const std::wstring System = L"Main";
+    const std::wstring Main = L"Main";
     const std::wstring Sensor = L"Sensor";
-    const std::wstring Copy = L"Copy";
-    const std::wstring Viewer = L"Viewer";
-
+    const std::wstring Result = L"Result";
 }
 
 // LogList 구조체 정의

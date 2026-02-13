@@ -44,6 +44,7 @@
 #define IDC_BUTTON_FRONT_VIEW3          1028
 #define IDC_BUTTON_TOP_VIEW             1028
 #define IDC_BUTTON_SETTING              1029
+#define IDC_BUTTON_OPEN_FOLDER          1030
 
 // Next default values for new objects
 // 

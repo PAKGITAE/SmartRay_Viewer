@@ -162,9 +162,9 @@ bool CZMapRenderer::RenderJetTo(
     return CopyMatBgr24ToVImage(bgr24, dst);
 }
 
-bool CZMapRenderer::GetStatsInRoi(const CRect& roi, ZRoiStats& out, uint16_t invalidValue) const
+bool CZMapRenderer::GetStatsInRoi(const CRect& roi, RoiInfoData& out, uint16_t invalidValue) const
 {
-    out = ZRoiStats{};
+    out = RoiInfoData{};
     if (m_z16.empty() || m_z16.type() != CV_16UC1) return false;
 
     // ROI 클램프 (CRect: left,top,right,bottom / right,bottom은 보통 "끝 다음" 좌표로 취급)
@@ -202,5 +202,17 @@ bool CZMapRenderer::GetStatsInRoi(const CRect& roi, ZRoiStats& out, uint16_t inv
     out.maxv = mx;
     out.mean = sum / (double)cnt;
     out.count = cnt;
+    return true;
+}
+
+
+bool CZMapRenderer::SetFromRawU16(int w, int h, const uint16_t* data)
+{
+    if (w <= 0 || h <= 0 || !data)
+        return false;
+
+    // 내부에 CV_16UC1 Mat 생성 후 복사
+    m_z16.create(h, w, CV_16UC1);
+    std::memcpy(m_z16.data, data, (size_t)w * (size_t)h * sizeof(uint16_t));
     return true;
 }

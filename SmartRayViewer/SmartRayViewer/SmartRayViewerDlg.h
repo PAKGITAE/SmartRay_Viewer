@@ -20,9 +20,19 @@
 #include "DlgParam.h"
 
 #include "SmartRaySensor.h"
+#include "Result.h"
+
 
 constexpr UINT WM_PCFRAME_READY = WM_APP + 10;
 constexpr double INVALID = -999999.0;
+
+constexpr UINT WM_ZMAP_READY = WM_APP + 11;
+
+enum class RoiStatSource
+{
+	PointCloud,   // frame->points 기반
+	ZMap16        // m_zmap(m_z16) 기반
+};
 
 // CSmartRayViewerDlg 대화 상자
 class CSmartRayViewerDlg : public CDialogEx
@@ -67,12 +77,13 @@ public:
 	void InitLayout();
 	void InitGrid();
 	void ClearGridData();
-	void AddGridMeasurePC(int RoiNo, const HeightStats& st);
 
 private:
 
 	CZMapRenderer m_zmap;
 	vImage _image{ IMG_WIDTH, IMG_HEIGHT, eImageDepth::Color, eImageModeUI::UI };
+	int m_lastZImgW = 0;
+	int m_lastZImgH = 0;
 
 	uint16_t m_vmin = 1;
 	uint16_t m_vmax = 65535;
@@ -122,6 +133,7 @@ private:
 	vIconButton _btnTopView;
 	vIconButton _btnFrontView;
 	vIconButton _btnSideLeftView;
+	vIconButton _btnOpenFolder;
 
 
 	vLabel _labelConnectSensor1;
@@ -136,10 +148,23 @@ private:
 	CVtkPointCloudView m_vtkView;
 	afx_msg LRESULT OnPcFrameReady(WPARAM, LPARAM);
 
+	//Zmap 이미지
+	afx_msg LRESULT OnZMapReady(WPARAM, LPARAM);
+
 private:
 	void InitSensor();
-	SmartRaySensor m_Sensor;
-	SmartRaySensor m_Sensor2;
+	SmartRaySensor m_Sensor0;
+	SmartRaySensor m_Sensor1;
+	Result m_result;
+
+private:
+	bool ComputeRoiStats_FromPointCloud(const PcFrame& frame, bool rotateCW90);
+	bool ComputeRoiStats_FromZMap(uint16_t invalidValue);
+	void ComputeRoiStats_AndFillGrid(); // 선택 분기 + grid 갱신
+	void AddGridMeasureZ(int RoiNo, const RoiInfoData& st);
+
+	RoiStatSource m_roiSource = RoiStatSource::PointCloud; // 기본값
+	bool m_roiAutoUpdate = true; // 실시간(프레임 들어올 때 자동 계산)
 
 public:
 	afx_msg void OnBnClickedButtonLoadImg();
@@ -153,4 +178,5 @@ public:
 	afx_msg void OnBnClickedButtonTopView();
 	afx_msg void OnBnClickedButtonFrontView();
 	afx_msg void OnBnClickedButtonSideLeftView();
+	afx_msg void OnBnClickedButtonOpenFolder();
 };

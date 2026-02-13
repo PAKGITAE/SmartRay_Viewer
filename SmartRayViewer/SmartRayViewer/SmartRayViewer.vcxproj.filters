@@ -51,9 +51,6 @@
     <ClInclude Include="SmartRaySensor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="GrabHelper.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="LogManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -73,6 +70,9 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="SR_Common.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Types.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
@@ -96,9 +96,6 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="SmartRaySensor.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="GrabHelper.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="LogManager.cpp">

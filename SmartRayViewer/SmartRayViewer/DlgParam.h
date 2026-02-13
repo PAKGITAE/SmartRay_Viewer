@@ -37,29 +37,37 @@ static const wchar_t* kSensorKeys[] = {
 	L"Sensor1_IP",
 	L"Sensor1_Port",
 	L"Sensor2_IP",
-	L"Sensor2_Port"
+	L"Sensor2_Port",
+	L"X_Scale",
+	L"Y_Scale",
+	L"Z_Scale",
+	L"NumberOfProfiles"
+
 };
 static const size_t kSensorKeyCount = _countof(kSensorKeys);
 
 static const ParamSpec kSensorKeySpec[kSensorKeyCount] = {
 	{ DataType::TYPE_STRING		,  0		, 0		,L"192.168.178.200"		, L"Sensor #1의 IP를 입력한다."},
-	{ DataType::TYPE_INT		,  40		, 0		,L""					, L"Sensor #1의 Port번호를 입력한다."},
+	{ DataType::TYPE_INT			,  40		, 0		,L""						, L"Sensor #1의 Port번호를 입력한다."},
 	{ DataType::TYPE_STRING		,  0		, 0		,L"192.168.178.201"		, L"Sensor #2의 IP를 입력한다."},
-	{ DataType::TYPE_INT		,  40		, 0		,L""					, L"Sensor #2의 Port번호를 입력한다."},
+	{ DataType::TYPE_INT			,  40		, 0		,L""						, L"Sensor #2의 Port번호를 입력한다."},
+	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 X Scale 입력한다.(단위 : mm)"},
+	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Y Scale 입력한다.(단위 : mm)"},
+	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Z Scale 입력한다.(단위 : mm)"},
+	{ DataType::TYPE_INT			, 1000		, 0		, L""					, L"측정을 라인 갯수를 설정합니다.(10단위로 설정)" }
+
 };
 //-----------------------------------------------------------------
 
 //-----------------------------------------------------------------
 //System
 static const wchar_t* kSystemKeys[] = {
-	L"UpdateFrameViewer",
-	L"NumberOfProfiles"
+	L"UpdateFrameViewer"
 };
 static const size_t kSystemKeyCount = _countof(kSystemKeys);
 
 static const ParamSpec kSystemKeySpec[kSystemKeyCount] = {
-	{ DataType::TYPE_INT		, 5		, 0		, L""		, L"Point Cloud 3D뷰어의 업데이트 프레임을 설정 합니다." },
-	{ DataType::TYPE_INT		, 1000		, 0		, L""		, L"측정을 라인 갯수를 설정합니다.(10단위로 설정)" }
+	{ DataType::TYPE_INT		, 5		, 0		, L""		, L"Point Cloud 3D뷰어의 업데이트 프레임을 설정 합니다." }
 };
 //-----------------------------------------------------------------
 

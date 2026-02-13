@@ -3,11 +3,11 @@
 #include <opencv2/opencv.hpp>
 #include <cstdint>
 
-struct ZRoiStats
+struct RoiInfoData
 {
     bool     ok = false;
-    uint16_t minv = 0;
-    uint16_t maxv = 0;
+    double minv = 0;
+    double maxv = 0;
     double   mean = 0.0;
     int64_t  count = 0;   // À¯È¿ ÇÈ¼¿ ¼ö
 };
@@ -44,7 +44,9 @@ public:
     ) const;
 
 
-    bool GetStatsInRoi(const CRect& roi, ZRoiStats& out, uint16_t invalidValue = 0) const;
+    bool GetStatsInRoi(const CRect& roi, RoiInfoData& out, uint16_t invalidValue = 0) const;
+
+    bool SetFromRawU16(int w, int h, const uint16_t* data);
 
 
 private:

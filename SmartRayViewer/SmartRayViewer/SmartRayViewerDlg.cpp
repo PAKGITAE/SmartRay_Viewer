@@ -11,6 +11,8 @@
 
 #include <fstream>
 #include <vector>
+#include <filesystem>
+#include <regex>
 
 using namespace std;
 
@@ -19,7 +21,93 @@ using namespace std;
 #endif
 
 
+static inline bool MapPointToPixel(
+	float x, float y,
+	int W, int H,
+	bool rotateCW90,
+	int& outX, int& outY,
+	float xmin, float xmax, float ymin, float ymax,
+	bool looksLikePixel
+)
+{
+	int ix = 0, iy = 0;
+
+	if (looksLikePixel)
+	{
+		ix = (int)std::lround(x);
+		iy = (int)std::lround(y);
+	}
+	else
+	{
+		const double dx = (double)(xmax - xmin);
+		const double dy = (double)(ymax - ymin);
+		if (dx == 0.0 || dy == 0.0) return false;
+
+		const double nx = (x - xmin) / dx; // 0..1
+		const double ny = (y - ymin) / dy; // 0..1
+
+		ix = (int)std::lround(nx * (W - 1));
+		iy = (int)std::lround(ny * (H - 1));
+	}
+
+	// ZMap은 좌상단 원점이므로 y flip (필요하면)
+	// 일단 “이미지 기준”으로 맞추는 게 목적이니 flip 해주는 쪽이 보통 맞음
+	iy = (H - 1) - iy;
+
+	// TopView 기준 CW90 회전 적용
+	if (rotateCW90)
+	{
+		// (x,y) -> (H-1-y, x) : CW90 in pixel space
+		int rx = (H - 1) - iy;
+		int ry = ix;
+		ix = rx;
+		iy = ry;
+	}
+
+	if (ix < 0 || ix >= W || iy < 0 || iy >= H) return false;
+
+	outX = ix;
+	outY = iy;
+	return true;
+}
+
+
+
 // 응용 프로그램 정보에 사용되는 CAboutDlg 대화 상자입니다.
+static CString GetLowerExtLocal(const CString& path)
+{
+	int dot = path.ReverseFind(L'.');
+	CString ext = (dot >= 0) ? path.Mid(dot) : L"";
+	ext.MakeLower();
+	return ext;
+}
+
+static bool ParseSensorAndFrameNoFromFilename(
+	const std::wstring& filename,
+	int& outCam,
+	uint64_t& outFrameNo)
+{
+	outCam = 0;
+	outFrameNo = 0;
+
+	// 예: 20260212_221711738_Sensor1_00000002_Pointcloud.asc
+	// Sensor1 / 00000002 파싱
+	std::wregex re(LR"(Sensor(\d+).*?_(\d+)_Pointcloud)", std::regex::icase);
+	std::wsmatch m;
+	if (!std::regex_search(filename, m, re))
+		return false;
+
+	try
+	{
+		outCam = std::stoi(m[1].str());
+		outFrameNo = (uint64_t)std::stoull(m[2].str());
+		return true;
+	}
+	catch (...)
+	{
+		return false;
+	}
+}
 
 class CAboutDlg : public CDialogEx
 {
@@ -54,8 +142,6 @@ END_MESSAGE_MAP()
 
 // CSmartRayViewerDlg 대화 상자
 
-
-
 CSmartRayViewerDlg::CSmartRayViewerDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_SMARTRAYVIEWER_DIALOG, pParent)
 	, _dlgLog(this)
@@ -86,7 +172,6 @@ void CSmartRayViewerDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_LABEL_SENSOR_CONNECT_1, _labelConnectSensor1);
 	DDX_Control(pDX, IDC_LABEL_SENSOR_CONNECT_2, _labelConnectSensor2);
 	
-
 	DDX_Control(pDX, IDC_SLIDER_VMIN, m_sliderVmin);
 	DDX_Control(pDX, IDC_SLIDER_VMAX, m_sliderVmax);
 	DDX_Control(pDX, IDC_LABEL_VMIN, _vLabelvMin);
@@ -102,7 +187,7 @@ void CSmartRayViewerDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_BUTTON_TOP_VIEW, _btnTopView);
 	DDX_Control(pDX, IDC_BUTTON_FRONT_VIEW, _btnFrontView);
 	DDX_Control(pDX, IDC_BUTTON_SIDE_LEFT_VIEW, _btnSideLeftView);
-
+	DDX_Control(pDX, IDC_BUTTON_OPEN_FOLDER, _btnOpenFolder);
 
 }
 
@@ -122,11 +207,14 @@ BEGIN_MESSAGE_MAP(CSmartRayViewerDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_START, &CSmartRayViewerDlg::OnBnClickedButtonStart)
 	ON_BN_CLICKED(IDC_BUTTON_STOP, &CSmartRayViewerDlg::OnBnClickedButtonStop)
 	ON_BN_CLICKED(IDC_BUTTON_SETTING, &CSmartRayViewerDlg::OnBnClickedButtonSetting)
-
-	ON_MESSAGE(WM_PCFRAME_READY, &CSmartRayViewerDlg::OnPcFrameReady)
 	ON_BN_CLICKED(IDC_BUTTON_TOP_VIEW, &CSmartRayViewerDlg::OnBnClickedButtonTopView)
 	ON_BN_CLICKED(IDC_BUTTON_FRONT_VIEW, &CSmartRayViewerDlg::OnBnClickedButtonFrontView)
 	ON_BN_CLICKED(IDC_BUTTON_SIDE_LEFT_VIEW, &CSmartRayViewerDlg::OnBnClickedButtonSideLeftView)
+
+	ON_MESSAGE(WM_PCFRAME_READY, &CSmartRayViewerDlg::OnPcFrameReady)
+	ON_MESSAGE(WM_ZMAP_READY, &CSmartRayViewerDlg::OnZMapReady)
+
+	ON_BN_CLICKED(IDC_BUTTON_OPEN_FOLDER, &CSmartRayViewerDlg::OnBnClickedButtonOpenFolder)
 END_MESSAGE_MAP()
 
 
@@ -162,7 +250,6 @@ BOOL CSmartRayViewerDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
-
 	InitClass();
 	InitLayout();
 	InitGrid();
@@ -174,7 +261,7 @@ BOOL CSmartRayViewerDlg::OnInitDialog()
 	m_vtkView.Init(GetDlgItem(IDC_VTK_VIEW)->GetSafeHwnd());
 	m_vtkView.ResizeToHost();
 
-	LogManager::GetInstance().PushLog(Log::System, L"OnInitDialog", L"PGM START");
+	LogManager::GetInstance().PushLog(Log::Main, L"OnInitDialog", L"PGM START");
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -257,8 +344,8 @@ void CSmartRayViewerDlg::OnDestroy()
 {
 	KillTimers();
 
-	m_Sensor.Disconnect();
-	m_Sensor2.Disconnect();
+	m_Sensor0.Disconnect();
+	m_Sensor1.Disconnect();
 
 	CDialogEx::OnDestroy();
 }
@@ -274,14 +361,14 @@ void CSmartRayViewerDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 
 	if (nIDEvent == TimerID::UpdateConnect) {
-		if (m_Sensor.IsConnected()) {
+		if (m_Sensor0.IsConnected()) {
 			DrawMonitoringSignalOnOff(IDC_SIGNAL_SENSOR_CONNECT_1, AppColor::RGB_GREEN);
 		}
 		else {
 			DrawMonitoringSignalOnOff(IDC_SIGNAL_SENSOR_CONNECT_1, AppColor::RGB_RED);
 		}
 
-		if (m_Sensor2.IsConnected()) {
+		if (m_Sensor1.IsConnected()) {
 			DrawMonitoringSignalOnOff(IDC_SIGNAL_SENSOR_CONNECT_2, AppColor::RGB_GREEN);
 		}
 		else {
@@ -316,7 +403,9 @@ void CSmartRayViewerDlg::OnBnClickedBtnExit()
 
 	if (result == IDYES)
 	{
-		Result::GetInstance().SetUiFrameCallback(nullptr);
+		m_result.SetPointCloudCallback(nullptr);
+		m_result.SetZMapCallback(nullptr);
+		m_result.SetThicknessCallback(nullptr);
 
 		// 확인 버튼이 눌러지면 프로그램 종료
 		CDialogEx::OnCancel();
@@ -379,8 +468,8 @@ void CSmartRayViewerDlg::InitLayout()
 	UIHelper::InitLabel(_labelConnectSensor2, L"Sensor #2", eLabelAlignH::Right, eLabelAlignV::Center, 24, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, L"", 0);
 
 	UIHelper::InitLabel(_vLabelZmapTitle, L"Zmap ColorMap Viewer & ROI Setting", eLabelAlignH::Center, eLabelAlignV::Center, 24, AppColor::RGB_WHITE, AppColor::RGB_BLACK, L"", 0);
-	UIHelper::InitLabel(_vLabelvMin, L"vMin : 0", eLabelAlignH::Right, eLabelAlignV::Center, 16, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, L"", 0);
-	UIHelper::InitLabel(_vLabelvMax, L"vMax : 65535", eLabelAlignH::Right, eLabelAlignV::Center, 16, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, L"", 0);
+	UIHelper::InitLabel(_vLabelvMin, L"vMin : 0", eLabelAlignH::Left, eLabelAlignV::Center, 16, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, L"", 0);
+	UIHelper::InitLabel(_vLabelvMax, L"vMax : 65535", eLabelAlignH::Left, eLabelAlignV::Center, 16, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, L"", 0);
 	UIHelper::InitIconButton(_btnResult, L"ROI영역 연산", L"", 28, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
 	UIHelper::InitIconButton(_btnLoadImg, L"데이터 불러오기", L"LoadFile.png", 20, true, AppColor::RGB_WHITE, AppColor::RGB_GRAY, AppColor::BUTTON_DOWN_RGB);
 
@@ -392,6 +481,7 @@ void CSmartRayViewerDlg::InitLayout()
 	UIHelper::InitIconButton(_btnSideLeftView, L"", L"LeftView.png", 28, true, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, AppColor::BUTTON_DOWN_RGB);
 	UIHelper::InitIconButton(_btnLoad3DData, L"", L"LoadFile.png", 20, true, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, AppColor::BUTTON_DOWN_RGB);
 	UIHelper::InitIconButton(_btnSetting, L"", L"Setting.png", 28, true, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, AppColor::BUTTON_DOWN_RGB);
+	UIHelper::InitIconButton(_btnOpenFolder, L"", L"Folder_Open.png", 28, true, AppColor::RGB_WHITE, AppColor::RGB_WEAK_BK_COLOR, AppColor::BUTTON_DOWN_RGB);
 
 }
 
@@ -490,42 +580,82 @@ void CSmartRayViewerDlg::InitGrid()
 
 void CSmartRayViewerDlg::InitSensor()
 {
-	Result::GetInstance().SetRootFolder(L"D:\\Data");
+	m_result.SetSaveRoots(L"D:\\Data", L"E:\\Data");
+	m_result.SetSaveEnabled(true);
+	m_result.SetZMapSaveEnabled(true);
+	m_result.SetZMapEnabled(true);
+	m_result.SetThicknessEnabled(true);
 
-	std::string strIP = AppStore::Get().GetParameterAsString("Sensor", "Sensor1_IP");
-	short sPort = AppStore::Get().GetParameterAsInt("Sensor", "Sensor1_Port");
-
-	m_Sensor.Configure("Sensor1", strIP, sPort, 0);
-
-	if (!m_Sensor.Connect(60))
-	{
-		LogManager::GetInstance().PushLog(Log::System, L"InitSensor", L"Sensor#1 Connect Fail");
-
-		CString msg(m_Sensor.GetLastErrorText().c_str());
-		AfxMessageBox(msg);
-		return;
-	}
-
-	strIP = AppStore::Get().GetParameterAsString("Sensor", "Sensor2_IP");
-	sPort = AppStore::Get().GetParameterAsInt("Sensor", "Sensor2_Port");
-
-	m_Sensor2.Configure("Sensor2", strIP, sPort, 1);
-
-	if (!m_Sensor2.Connect(60))
-	{
-		LogManager::GetInstance().PushLog(Log::System, L"InitSensor", L"Sensor#2 Connect Fail");
-
-		CString msg(m_Sensor2.GetLastErrorText().c_str());
-		AfxMessageBox(msg);
-		return;
-	}
-
-	Result::GetInstance().SetUiFrameCallback([this](std::shared_ptr<PcFrame> frame)
+	// UI 콜백(파이프라인 -> UI)
+	m_result.SetPointCloudCallback([this](std::shared_ptr<PcFrame> frame)
 		{
-			// worker thread → UI thread
 			auto* p = new std::shared_ptr<PcFrame>(std::move(frame));
 			PostMessage(WM_PCFRAME_READY, 0, (LPARAM)p);
 		});
+
+	m_result.SetZMapCallback([this](std::shared_ptr<ZMapFrame> zf)
+		{
+			auto* p = new std::shared_ptr<ZMapFrame>(std::move(zf));
+			PostMessage(WM_ZMAP_READY, 0, (LPARAM)p);
+		});
+
+	// thickness UI도 필요하면 여기서 PostMessage나 grid 갱신
+	// m_result.SetThicknessCallback([this](const ThicknessFrame& tf){ ... });
+
+	// 센서 설정
+	std::string ip0 = AppStore::Get().GetParameterAsString("Sensor", "Sensor1_IP");
+	short port0 = AppStore::Get().GetParameterAsInt("Sensor", "Sensor1_Port");
+
+	m_Sensor0.Configure("Sensor0", ip0, (unsigned short)port0, 0);
+	//m_Sensor0.SetParFilePath("C:\\SmartRay\\SmartRay DevKit\\SR_API\\sr_parameter_sets\\Pars_ECCO95\\ECCO95_3D_Snapshot.par");
+	m_Sensor0.SetParFilePath("C:\\SmartRay\\SmartRay DevKit\\SR_API\\sr_parameter_sets\\Pars_ECCO95\\ECCO95_3D_Repeat_Snapshot.par");
+
+	const int profiles = AppStore::Get().GetParameterAsInt("Sensor", "NumberOfProfiles");
+	m_Sensor0.SetProfilesToCapture((uint32_t)profiles);
+	m_Sensor0.SetMergeExpectedProfiles((uint32_t)profiles);
+
+	const double X_Scale = AppStore::Get().GetParameterAsDouble("Sensor", "X_Scale");
+	m_Sensor0.SetXScale((float)X_Scale);
+
+	// 센서 -> 파이프라인 (센서는 파이프라인만 호출)
+	m_Sensor0.SetFrameCallback([this](std::shared_ptr<PcFrame> f)
+		{
+			m_result.OnPointCloud(std::move(f));
+		});
+
+	if (!m_Sensor0.Connect(60))
+	{
+		AfxMessageBox(CString(m_Sensor0.GetLastErrorText().c_str()));
+		return;
+	}
+
+	// sensor handle을 thickness용으로 등록(라이브러리가 필요할 때)
+	m_result.RegisterAnySensorHandle(m_Sensor0.GetHandle());
+
+
+	// 2번째 센서도 동일
+	std::string ip1 = AppStore::Get().GetParameterAsString("Sensor", "Sensor2_IP");
+	short port1 = AppStore::Get().GetParameterAsInt("Sensor", "Sensor2_Port");
+
+	m_Sensor1.Configure("Sensor1", ip1, (unsigned short)port1, 1);
+	//m_Sensor1.SetParFilePath("C:\\SmartRay\\SmartRay DevKit\\SR_API\\sr_parameter_sets\\Pars_ECCO95\\ECCO95_3D_Snapshot.par");
+	m_Sensor1.SetParFilePath("C:\\SmartRay\\SmartRay DevKit\\SR_API\\sr_parameter_sets\\Pars_ECCO95\\ECCO95_3D_Repeat_Snapshot.par");
+	m_Sensor1.SetProfilesToCapture((uint32_t)profiles);
+	m_Sensor1.SetMergeExpectedProfiles((uint32_t)profiles);
+
+	m_Sensor1.SetXScale((float)X_Scale);
+
+	m_Sensor1.SetFrameCallback([this](std::shared_ptr<PcFrame> f)
+		{
+			m_result.OnPointCloud(std::move(f));
+		});
+
+	if (!m_Sensor1.Connect(60))
+	{
+		AfxMessageBox(CString(m_Sensor1.GetLastErrorText().c_str()));
+		return;
+	}
+	m_result.RegisterAnySensorHandle(m_Sensor1.GetHandle());
 }
 
 void CSmartRayViewerDlg::ClearGridData()
@@ -558,7 +688,7 @@ void CSmartRayViewerDlg::OnBnClickedButtonLoadImg()
 
 	if (!m_zmap.Load(path)) {
 		OutputDebugString(L"[ZMAP] load failed\n");
-		logMgr.PushLog(Log::System, L"OnBnClickedButtonLoadImg", L"[ZMAP] load failed");
+		logMgr.PushLog(Log::Main, L"OnBnClickedButtonLoadImg", L"[ZMAP] load failed");
 
 		return;
 	}
@@ -570,7 +700,7 @@ void CSmartRayViewerDlg::OnBnClickedButtonLoadImg()
 	uint16_t invalidValue = 0;
 	if (!m_zmap.GetDataMinMax(dataMin, dataMax, invalidValue)) {
 		OutputDebugString(L"[ZMAP] min/max failed\n");
-		logMgr.PushLog(Log::System, L"OnBnClickedButtonLoadImg", L"[ZMAP] min/max failed");
+		logMgr.PushLog(Log::Main, L"OnBnClickedButtonLoadImg", L"[ZMAP] min/max failed");
 		return;
 	}
 
@@ -579,8 +709,6 @@ void CSmartRayViewerDlg::OnBnClickedButtonLoadImg()
 
 	InitZMapSliders(dataMin, dataMax);
 	m_hasZmap = true;
-
-	m_vtkView.SetGridSize(m_zmap.Width(), m_zmap.Height());
 
 	UpdateZMapJet();
 
@@ -652,10 +780,11 @@ void CSmartRayViewerDlg::UpdateZMapJet()
 
 	if (!m_zmap.RenderJetTo(_image, m_vmin, m_vmax, 0, cv::Scalar(80, 80, 80))) {
 		OutputDebugString(L"[ZMAP] RenderJetTo failed\n");
-		logMgr.PushLog(Log::System, L"UpdateZMapJet", L"[ZMAP] RenderJetTo failed");
+		logMgr.PushLog(Log::Main, L"UpdateZMapJet", L"[ZMAP] RenderJetTo failed");
 		return;
 	}
 
+	_image.ClearObjAll();
 	_image.DrawImage(eImageZoomType::NotResizeDraw);
 	_image.DrawObjAll();
 }
@@ -675,50 +804,9 @@ void CSmartRayViewerDlg::UpdateZMapValueLabels()
 	_vLabelvMax.Draw();
 }
 
-void CSmartRayViewerDlg::AddGridMeasurePC(int RoiNo, const HeightStats& st)
-{
-	int nRow = _vGridResult.GetRowCount();
-	_vGridResult.SetRowCount(nRow + 1);
-
-	CString cols[5];
-	cols[0].Format(L"%d", RoiNo);
-	cols[1].Format(L"%.3f", st.mean);
-	cols[2].Format(L"%.3f", st.maxv);
-	cols[3].Format(L"%.3f", st.minv);
-	cols[4].Format(L"%lld", st.count);
-
-	for (int c = 0; c < 5; ++c)
-	{
-		_vGridResult.SetItemFormat(nRow, c, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-		_vGridResult.SetItemText(nRow, c, cols[c]);
-		_vGridResult.SetItemFgColour(nRow, c, RGB(0, 0, 0));
-		_vGridResult.SetItemState(nRow, c, GVIS_READONLY);
-	}
-
-	_vGridResult.SetRowHeight(nRow, 50);
-	_vGridResult.Invalidate();
-}
-
 void CSmartRayViewerDlg::OnBnClickedButtonResult()
 {
-	ClearGridData();
-
-	for (int i = 0; i < _image.GetCountTrackerROI(); i++)
-	{
-		CRect roi = _image.GetTrackerROI(i);
-
-		HeightStats stPC;
-		if (m_vtkView.GetHeightStatsInRoiPixel(roi, stPC))
-		{
-			AddGridMeasurePC(i, stPC);
-		}
-		else
-		{
-			// ROI에 유효 포인트가 없으면 빈 값 혹은 0으로 넣고 싶다면 여기서 처리
-			OutputDebugString(L"[PC ROI] stats failed\n");
-		}
-	}
-
+	ComputeRoiStats_AndFillGrid();
 }
 
 void CSmartRayViewerDlg::DrawZMapColorBar(CDC* pDC)
@@ -800,7 +888,7 @@ COLORREF CSmartRayViewerDlg::GetJetColor(double t)
 
 void CSmartRayViewerDlg::OnBnClickedButtonLoad3dData()
 {
-	if (m_Sensor.IsRunning() || m_Sensor2.IsRunning()) {
+	if (m_Sensor0.IsRunning() || m_Sensor1.IsRunning()) {
 		AfxMessageBox(L"측정중입니다.\n측정을 멈춘 후 데이터를 불러올 수 있습니다.");
 		return;
 	}
@@ -815,36 +903,70 @@ void CSmartRayViewerDlg::OnBnClickedButtonLoad3dData()
 
 	CString path = dlg.GetPathName();
 
-	if (!m_vtkView.LoadPointCloud(path))
+	// 파일명만 뽑기
+	CString fnameC = dlg.GetFileName();
+	std::wstring fname = (LPCWSTR)fnameC;
+
+	int camFromName = 0;
+	uint64_t frameNoFromName = 0;
+	bool okParse = ParseSensorAndFrameNoFromFilename(fname, camFromName, frameNoFromName);
+
+	// ✅ 1) 파일 → PcFrame
+	// camIndex는 "파일명 기준"으로 넣는 게 맞음 (파싱 실패 시 0)
+	auto frame = m_vtkView.LoadPointCloudToFrame(path, okParse ? camFromName : 0);
+	if (!frame)
 	{
 		AfxMessageBox(L"포인트 클라우드 로드 실패\n(확장자/포맷/데이터를 확인해 주세요)");
 		return;
 	}
+
+	// ✅ 2) frameNo도 파일명 기준 (파싱 실패 시 fallback)
+	if (okParse)
+		frame->frameNo = frameNoFromName;
+	else
+		frame->frameNo = 0; // 또는 static 증가
+
+	m_result.OnPointCloud(frame);
 }
 
 void CSmartRayViewerDlg::OnBnClickedButtonStart()
 {
-	if (!m_Sensor.IsConnected() || !m_Sensor2.IsConnected()) {
-		LogManager::GetInstance().PushLog(Log::System, L"OnBnClickedButtonStart", L"센서 연결 상태를 확인해주세요.");
+	if (!m_Sensor0.IsConnected() || !m_Sensor1.IsConnected()) {
+		LogManager::GetInstance().PushLog(Log::Main, L"OnBnClickedButtonStart", L"센서 연결 상태를 확인해주세요.");
 		AfxMessageBox(L"센서 연결 상태를 확인해주세요.");
 		return;
 	}
 
+	const int profiles = AppStore::Get().GetParameterAsInt("Sensor", "NumberOfProfiles");
+	m_Sensor0.SetProfilesToCapture((uint32_t)profiles);
+	m_Sensor0.SetMergeExpectedProfiles((uint32_t)profiles);
+
+	const double X_Scale = AppStore::Get().GetParameterAsDouble("Sensor", "X_Scale");
+	m_Sensor0.SetXScale((float)X_Scale);
+
+	m_Sensor1.SetProfilesToCapture((uint32_t)profiles);
+	m_Sensor1.SetMergeExpectedProfiles((uint32_t)profiles);
+
+	m_Sensor1.SetXScale((float)X_Scale);
+
+	//m_Sensor.StopPointCloud();
+	//m_Sensor2.StopPointCloud();
+
 	// 센서 1개만 먼저 출력
-	m_Sensor.StartPointCloud();
-	m_Sensor2.StartPointCloud();
+	m_Sensor0.Start();
+	m_Sensor1.Start();
 }
 
 void CSmartRayViewerDlg::OnBnClickedButtonStop()
 {
-	if (!m_Sensor.IsConnected() || !m_Sensor2.IsConnected()) {
-		LogManager::GetInstance().PushLog(Log::System, L"OnBnClickedButtonStop", L"센서 연결 상태를 확인해주세요.");
+	if (!m_Sensor0.IsConnected() || !m_Sensor1.IsConnected()) {
+		LogManager::GetInstance().PushLog(Log::Main, L"OnBnClickedButtonStop", L"센서 연결 상태를 확인해주세요.");
 		AfxMessageBox(L"센서 연결 상태를 확인해주세요.");
 		return;
 	}
 
-	m_Sensor.StopPointCloud();
-	m_Sensor2.StopPointCloud();
+	m_Sensor0.Stop();
+	m_Sensor1.Stop();
 }
 
 void CSmartRayViewerDlg::OnBnClickedButtonSetting()
@@ -855,31 +977,24 @@ void CSmartRayViewerDlg::OnBnClickedButtonSetting()
 		_dlgParam->ShowWindow(SW_SHOW);
 }
 
-LRESULT CSmartRayViewerDlg::OnPcFrameReady(WPARAM, LPARAM lParam)
+void CSmartRayViewerDlg::OnBnClickedButtonOpenFolder()
 {
-	auto* pFramePtr = reinterpret_cast<std::shared_ptr<PcFrame>*>(lParam);
-	std::shared_ptr<PcFrame> frame = (pFramePtr ? *pFramePtr : nullptr);
-	delete pFramePtr;
+	namespace fs = std::filesystem;
 
-	if (!frame || frame->points.empty())
-		return 0;
+	const std::wstring date = _Util.MakeTimestamp(vUtil::TimeUnit::Day, true, false);
+	fs::path folder = L"D:\\Data\\" + date;
 
-	std::vector<float> xyz;
-	xyz.reserve(frame->points.size() * 3);
-	for (const auto& pt : frame->points)
+
+	// 폴더 없으면 자동 생성
+	if (!fs::exists(folder))
 	{
-		if (pt.x == INVALID || pt.y == INVALID || pt.z == INVALID)
-			continue;
-
-		xyz.push_back((float)pt.x);
-		xyz.push_back((float)pt.y);
-		xyz.push_back((float)pt.z);
+		fs::create_directories(folder);
 	}
 
-	m_vtkView.UpdatePointCloudXYZ(xyz);
-
-	return 0;
+	// 탐색기 실행
+	ShellExecute(nullptr, L"open", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 }
+
 void CSmartRayViewerDlg::OnBnClickedButtonTopView()
 {
 	m_vtkView.ViewTop();
@@ -893,4 +1008,229 @@ void CSmartRayViewerDlg::OnBnClickedButtonFrontView()
 void CSmartRayViewerDlg::OnBnClickedButtonSideLeftView()
 {
 	m_vtkView.ViewSide();
+}
+
+
+LRESULT CSmartRayViewerDlg::OnPcFrameReady(WPARAM, LPARAM lParam)
+{
+	auto* pFramePtr = reinterpret_cast<std::shared_ptr<PcFrame>*>(lParam);
+	std::shared_ptr<PcFrame> frame = (pFramePtr ? *pFramePtr : nullptr);
+	delete pFramePtr;
+
+	if (!frame || frame->points.empty())
+		return 0;
+
+	m_vtkView.UpdatePointCloud(frame->points);
+
+	LogManager& logMgr = LogManager::GetInstance();
+	std::wstring strLog = L"PointCloud Update / frameNo=" + std::to_wstring(frame->frameNo) +
+		L" count=" + std::to_wstring(frame->points.size());
+	logMgr.PushLog(Log::Main, L"OnPcFrameReady", strLog);
+
+	return 0;
+
+}
+
+LRESULT CSmartRayViewerDlg::OnZMapReady(WPARAM, LPARAM lParam)
+{
+	auto* pZPtr = reinterpret_cast<std::shared_ptr<ZMapFrame>*>(lParam);
+	std::shared_ptr<ZMapFrame> zf = (pZPtr ? *pZPtr : nullptr);
+	delete pZPtr;
+
+	if (!zf || zf->z.empty() || zf->w <= 0 || zf->h <= 0)
+		return 0;
+
+	// ✅ CZMapRenderer에 raw u16을 세팅하는 함수가 필요함
+	// 아래 함수가 없다면 ZMapRenderer에 추가해야 함(바로 아래에 추가 코드 줄게)
+	if (!m_zmap.SetFromRawU16(zf->w, zf->h, zf->z.data()))
+		return 0;
+
+	uint16_t dataMin = 1, dataMax = 65535;
+	uint16_t invalidValue = 0;
+	if (!m_zmap.GetDataMinMax(dataMin, dataMax, invalidValue))
+		return 0;
+
+	InitZMapSliders(dataMin, dataMax);
+
+
+	const int w = m_zmap.Width();
+	const int h = m_zmap.Height();
+	const bool sizeChanged = (w != m_lastZImgW) || (h != m_lastZImgH);
+
+	if (sizeChanged)
+	{
+		// VTK/Grid, 이미지 버퍼 재초기화 (크기 바뀔 때만)
+		_image.Init(w, h, 24);
+
+		m_lastZImgW = w;
+		m_lastZImgH = h;
+	}
+
+	m_hasZmap = true;
+
+
+	UpdateZMapJet();
+
+	if (m_roiAutoUpdate)
+		ComputeRoiStats_AndFillGrid();
+
+	return 0;
+}
+
+void CSmartRayViewerDlg::AddGridMeasureZ(int RoiNo, const RoiInfoData& st)
+{
+	int nRow = _vGridResult.GetRowCount();
+	_vGridResult.SetRowCount(nRow + 1);
+
+	CString cols[5];
+	cols[0].Format(L"%d", RoiNo);
+	cols[1].Format(L"%.4f", st.mean);
+	cols[2].Format(L"%.4f", st.maxv);
+	cols[3].Format(L"%.4f", st.minv);
+	cols[4].Format(L"%lld", (long long)st.count);
+
+	for (int c = 0; c < 5; ++c)
+	{
+		_vGridResult.SetItemFormat(nRow, c, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+		_vGridResult.SetItemText(nRow, c, cols[c]);
+		_vGridResult.SetItemFgColour(nRow, c, RGB(0, 0, 0));
+		_vGridResult.SetItemState(nRow, c, GVIS_READONLY);
+	}
+
+	_vGridResult.SetRowHeight(nRow, 50);
+	_vGridResult.Invalidate();
+}
+
+void CSmartRayViewerDlg::ComputeRoiStats_AndFillGrid()
+{
+	ClearGridData();
+
+	const int roiCnt = _image.GetCountTrackerROI();
+	if (roiCnt <= 0) return;
+
+	if (m_roiSource == RoiStatSource::ZMap16)
+	{
+		if (!m_hasZmap)
+		{
+			//AfxMessageBox(L"ZMap 데이터가 없습니다.\n먼저 측정하거나 ZMap을 불러오세요.");
+			return;
+		}
+
+		// 프로젝트 invalid 규약에 맞춰서
+		const uint16_t invalidValue = 0;
+		ComputeRoiStats_FromZMap(invalidValue);
+		return;
+	}
+
+	// PointCloud
+	auto frame = m_result.GetLastPcFrame(0);
+	if (!frame || frame->points.empty())
+	{
+		//AfxMessageBox(L"PointCloud 데이터가 없습니다.");
+		return;
+	}
+
+	const bool rotateCW90 = true;
+	ComputeRoiStats_FromPointCloud(*frame, rotateCW90);
+}
+
+bool CSmartRayViewerDlg::ComputeRoiStats_FromZMap(uint16_t invalidValue)
+{
+	const int roiCnt = _image.GetCountTrackerROI();
+	if (roiCnt <= 0) return false;
+
+	bool any = false;
+	for (int i = 0; i < roiCnt; ++i)
+	{
+		CRect roi = _image.GetTrackerROI(i);
+
+		RoiInfoData st;
+		if (m_zmap.GetStatsInRoi(roi, st, invalidValue))
+		{
+			AddGridMeasureZ(i, st);
+			any = true;
+		}
+	}
+	return any;
+}
+
+bool CSmartRayViewerDlg::ComputeRoiStats_FromPointCloud(const PcFrame& frame, bool rotateCW90)
+{
+	const int roiCnt = _image.GetCountTrackerROI();
+	if (roiCnt <= 0) return false;
+
+	const int W = m_zmap.Width();
+	const int H = m_zmap.Height();
+	if (W <= 0 || H <= 0) return false;
+
+	const float X_Scale = (float)AppStore::Get().GetParameterAsDouble("Sensor", "X_Scale");
+	const float Y_Scale = (float)AppStore::Get().GetParameterAsDouble("Sensor", "Y_Scale");
+	if (X_Scale <= 0.f || Y_Scale <= 0.f) return false;
+
+	// xmin/ymin 기준점
+	float xmin = 0.f, ymin = 0.f;
+	bool firstXY = true;
+	for (const auto& p : frame.points)
+	{
+		if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)) continue;
+		if (firstXY) { xmin = p.x; ymin = p.y; firstXY = false; }
+		else { if (p.x < xmin) xmin = p.x; if (p.y < ymin) ymin = p.y; }
+	}
+	if (firstXY) return false;
+
+	bool any = false;
+
+	for (int i = 0; i < roiCnt; ++i)
+	{
+		CRect roi = _image.GetTrackerROI(i);
+
+		double sum = 0.0;
+		double mn = 0.0, mx = 0.0;
+		long long cnt = 0;
+		bool first = true;
+
+		for (const auto& p : frame.points)
+		{
+			if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)) continue;
+
+			int ix = (int)std::lround((p.x - xmin) / X_Scale);
+			int iy = (int)std::lround((p.y - ymin) / Y_Scale);
+
+			// y flip
+			iy = (H - 1) - iy;
+
+			// CW90
+			if (rotateCW90)
+			{
+				int rx = (H - 1) - iy;
+				int ry = ix;
+				ix = rx;
+				iy = ry;
+			}
+
+			if (ix < roi.left || ix >= roi.right || iy < roi.top || iy >= roi.bottom)
+				continue;
+
+			const double z = (double)p.z;
+			if (first) { mn = mx = z; first = false; }
+			else { if (z < mn) mn = z; if (z > mx) mx = z; }
+
+			sum += z;
+			++cnt;
+		}
+
+		if (cnt == 0) continue;
+
+		RoiInfoData st{};
+		st.ok = true;
+		st.mean = sum / (double)cnt;
+		st.minv = mn;
+		st.maxv = mx;
+		st.count = cnt;
+
+		AddGridMeasureZ(i, st);
+		any = true;
+	}
+
+	return any;
 }

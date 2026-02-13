@@ -2,27 +2,26 @@
 #include <string>
 #include <atomic>
 #include <mutex>
-
 #include <map>
 #include <memory>
+#include <vector>
+#include <functional>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 
-#include "vThreadPool.h"
+#include "Types.h"
 
+// SmartRay SDK
 #include "SR_API_public.h"
 #include "SR_API_Defines.h"
 #include "sr_api_errorcodes.h"
 
-#include "GrabHelper.h"
-
-#include "LogManager.h"
-
-
-static const float DEFAULT_RESOLUTION =
-(float)0.100000;  // Default x-axis resolution (transport resolution) for point cloud data.
-
 class SmartRaySensor
 {
 public:
+    using FrameCallback = std::function<void(std::shared_ptr<PcFrame>)>;
+
     SmartRaySensor();
     ~SmartRaySensor();
 
@@ -30,104 +29,48 @@ public:
     SmartRaySensor& operator=(const SmartRaySensor&) = delete;
 
 public:
-    //----------------------------------------------//
-    // 연결 정보 설정
     void Configure(const std::string& name,
         const std::string& ip,
         unsigned short port,
-        int sensorIndex = 0);
+        int camIndex);
 
-    // 연결
+    // Connect에서 1회 heavy config, Start에서 lightweight
+    void SetParFilePath(const std::string& path) { m_parFile = path; }
+
+    // 여기 값은 센서 설정(프로파일 캡쳐 수) & 머지 목표에 같이 사용
+    void SetProfilesToCapture(uint32_t profiles) { m_profilesToCapture.store(profiles); }
+    void SetXScale(float xScale) { m_xScaleToSet.store(xScale); }
+
+    // 0이면 머지 OFF (chunk 그대로 전달)
+    void SetMergeExpectedProfiles(uint32_t expectedProfiles) { m_mergeExpectedProfiles.store(expectedProfiles); }
+
+    void SetFrameCallback(FrameCallback cb);
+
     bool Connect(int timeoutS = 60);
-
-    bool m_apiRefHeld = false;
-
-    // 연결 해제
     void Disconnect();
 
-    // 연결 상태 반환
+    bool Start();
+    void Stop();
+
     bool IsConnected() const { return m_connected.load(); }
+    bool IsRunning()   const { return m_running.load(); }
 
-    //측정상태 반환
-    bool IsRunning() const { return m_running.load(); }
-    //----------------------------------------------//
+    // Thickness 라이브러리가 sensor handle을 요구하면 외부에서 가져가도록 제공
+    const SRSensor* GetHandle() const { return m_sensor; }
 
-    //----------------------------------------------//
-    //유틸 함수
     int         GetLastErrorCode() const;
     std::string GetLastErrorText() const;
-    //----------------------------------------------//
-
-    //----------------------------------------------//
-    // 검사 관련 함수들
-    // PointCloud 수신 시작
-    bool StartPointCloud();
-
-    // PointCloud 수신 정지
-    void StopPointCloud();
-
-    // 센서 설정값 변경 -> 검사 시작전 호출
-    bool ConfigurePointCloud(
-        int numberOfProfiles = 200,
-        float transportResolution = DEFAULT_RESOLUTION,
-        bool enableMetaData = true);
-    //----------------------------------------------//
-
-    void BeginCapture(); // SR_API_SetNumberOfProfilesToCapture() 호출하는 곳에서 같이 불러도 됨
 
 private:
-    // 연결전 확인정보
+    bool EnsureConfiguredOnce();
+    bool ConfigurePointCloud_Once(uint32_t profiles);
+    bool ApplyProfilesIfChanged(uint32_t profiles);
+    bool ApplyXScaleIfChanged(float xScale);
+
     static bool EnsureApiInitialized();
-
-    // API연결 종료
     static void ReleaseApiIfNeeded();
+    static bool RegisterPointCloudCallbackOnce();
 
-    // 에러코드 메세지 출력용
-    bool HandleReturnCode(int rc, const char* where);
-
-    //뭔가 로그 출력용 같음 -> 필요없어 보임
-    static int UnknownCommandCallback(SRSensor* sensor);
-
-private:
-    SRSensor* m_sensor = nullptr;
-
-    // 센서 정보
-    std::string m_name;
-    std::string m_ip;
-    unsigned short m_port = 0;
-    int m_sensorIndex = 0;
-
-    // 연속해서 센서 설정을 변경하지 않기 위한 변수
-    bool m_isPcConfigured = false;
-
-    // 연결정보
-    std::atomic<bool> m_connected{ false };
-
-    // 측정중인지 확인하는 정보
-    std::atomic<bool> m_running{ false };
-
-    // 뮤텍스
-    mutable std::mutex m_errMtx;
-
-    // 에러 정보
-    int m_lastErr = 0;
-    std::string m_lastErrText;
-
-    //초기화/종료 이중 접근 방지용 뮤텍스
-    static std::mutex s_apiMtx;
-
-    //센서 2개 off후 API종료하기 위한 카운트
-    static int  s_apiRefCount;
-
-    // 이중 API종료 방지용
-    static bool s_apiInited;
-
-    //콜백 등록을 1회만 하기 위한 변수
-    static std::atomic<bool> s_pcCbRegistered;
-
-
-private:
-    // ✅ SDK가 요구하는 정확한 시그니처
     static int CallbackPointCloud(
         SRSensor* sensor,
         ImageDataType dattyp,
@@ -142,34 +85,66 @@ private:
         void* extData
     );
 
-private:
-    // cam_index -> SmartRaySensor 인스턴스 매핑 (멀티센서 핵심)
-    static std::mutex s_instMtx;
-    static std::map<int, SmartRaySensor*> s_instances;
+    static int UnknownCommandCallback(SRSensor* sensor);
 
     void RegisterInstance();
     void UnregisterInstance();
 
-private:  
-    uint32_t m_packetSize = 0;              //패킷 사이즈
-    uint32_t m_packetTimeout = 0;           //타임아웃
-
-    float m_transportResolution = DEFAULT_RESOLUTION;   //스케일
-    int   m_numProfilesToCapture = 200;                 //설정 캡쳐 갯수
-
+    bool HandleReturnCode(int rc, const char* where);
+    void DispatchFrame(std::shared_ptr<PcFrame> frame);
+    void ResetMergeBuffer();
 
 private:
+    SRSensor* m_sensor = nullptr;
+
+    std::string m_name, m_ip;
+    unsigned short m_port = 0;
+    int m_camIndex = 0;
+
+    std::string m_parFile;
+
+    std::atomic<bool> m_connected{ false };
+    std::atomic<bool> m_running{ false };
+
+    std::mutex m_cfgMtx;
+    std::atomic<bool> m_configuredOnce{ false };
+
+    // 설정/머지 관련
+    std::atomic<uint32_t> m_profilesToCapture{ 200 };
+    std::atomic<uint32_t> m_mergeExpectedProfiles{ 0 };
+    std::atomic<float> m_xScaleToSet{ 0.019f };
+
+    uint32_t m_sensorConfiguredProfiles = 0; // 실제 센서에 적용된 값(로컬 캐시)
+    float m_sensorConfiguredXScale = -1.0f;
+    uint32_t m_packetSize = 0;
+    uint32_t m_packetTimeout = 0;
+
+    // merge buffer
     std::mutex m_accMtx;
+    uint32_t m_accProfiles = 0;
+    std::vector<SR_3DPOINT> m_accPoints;
+    std::vector<unsigned short> m_accIntensity;
 
-    uint32_t m_expectedProfiles = 0;   // 설정값(예: 1000)
-    uint32_t m_accProfiles = 0;        // 누적된 profiles
-    int      m_camIndex = 0;
+    // callback
+    std::mutex m_cbMtx;
+    FrameCallback m_frameCb;
 
-    std::vector<SR_3DPOINT>       m_accPoints;
-    std::vector<unsigned short>  m_accIntensity;
+    std::atomic<uint64_t> m_frameCounter{ 0 };
 
-    std::atomic<bool> m_stopRequested{ false }; // ✅ 콜백 밖에서 stop 하려고
+    // error
+    mutable std::mutex m_errMtx;
+    int m_lastErr = 0;
+    std::string m_lastErrText;
+
+    bool m_apiRefHeld = false;
 
 private:
-    GrabHelper m_grabHelper;
+    // statics
+    static std::mutex s_apiMtx;
+    static int  s_apiRefCount;
+    static bool s_apiInited;
+    static std::atomic<bool> s_pcCbRegistered;
+
+    static std::mutex s_instMtx;
+    static std::map<int, SmartRaySensor*> s_instances;
 };

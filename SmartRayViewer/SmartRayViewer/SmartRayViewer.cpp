@@ -122,8 +122,8 @@ void CSmartRayViewerApp::InitializeSystem()
 	logMgr.Initialize(logPath, true);
 
 	// 초기화 로그
-	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"=== Application Started ===");
-	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"ExePath: " + GetBasePath());
-	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"SystemPath: " + systemPath);
-	logMgr.PushLog(Log::System, L"InitializeSystem(App)", L"LogPath: " + logPath);
+	logMgr.PushLog(Log::Main, L"InitializeSystem(App)", L"=== Application Started ===");
+	logMgr.PushLog(Log::Main, L"InitializeSystem(App)", L"ExePath: " + GetBasePath());
+	logMgr.PushLog(Log::Main, L"InitializeSystem(App)", L"SystemPath: " + systemPath);
+	logMgr.PushLog(Log::Main, L"InitializeSystem(App)", L"LogPath: " + logPath);
 }
