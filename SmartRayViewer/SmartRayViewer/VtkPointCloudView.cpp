@@ -450,7 +450,94 @@ bool CVtkPointCloudView::UpdatePointCloud(const SR_3DPOINT* pts, size_t nPts)
         m_cameraInitialized = true;
     }
 
-    ViewTop();
+    if (!m_cameraInitialized)
+    {
+        m_vtkRenderer->ResetCamera();
+        m_cameraInitialized = true;
+
+        // 초기 1회만 기본 뷰 세팅
+        ViewFront();
+        UpdateOrbitFromVisibleBounds();
+    }
+    else
+    {
+        // AutoRotate OFF일 때만 ViewTop 유지(원할 때)
+        //if (!m_autoRotate)
+        //    ViewFront();
+        //else
+            ViewFront();
+            UpdateOrbitFromVisibleBounds(); // 데이터 범위가 바뀌면 궤도 중심만 갱신
+    }
 
     return true;
+}
+
+void CVtkPointCloudView::StartAutoRotate(double degPerSec)
+{
+    m_autoRotate = true;
+    m_rotateDegPerSec = (degPerSec > 0.0) ? degPerSec : 30.0;
+
+    // 첫 시작 시 현재 보이는 bounds로 궤도 기준 잡기
+    UpdateOrbitFromVisibleBounds();
+}
+
+void CVtkPointCloudView::StopAutoRotate()
+{
+    m_autoRotate = false;
+}
+
+void CVtkPointCloudView::ToggleAutoRotate(double degPerSec)
+{
+    if (m_autoRotate) StopAutoRotate();
+    else StartAutoRotate(degPerSec);
+}
+
+void CVtkPointCloudView::UpdateOrbitFromVisibleBounds()
+{
+    if (!m_vtkRenderer) { m_orbitReady = false; return; }
+
+    double b[6];
+    m_vtkRenderer->ComputeVisiblePropBounds(b);
+    if (!BoundsValid(b)) { m_orbitReady = false; return; }
+
+    const double cx = (b[0] + b[1]) * 0.5;
+    const double cy = (b[2] + b[3]) * 0.5;
+    const double cz = (b[4] + b[5]) * 0.5;
+
+    m_orbitFocal[0] = cx;
+    m_orbitFocal[1] = cy;
+    m_orbitFocal[2] = cz;
+
+    const double size = SafeSize(b);
+    m_orbitRadius = size * 2.5; // ViewTop에서 dist=2.5 썼던 감각과 동일
+
+    m_orbitReady = true;
+}
+
+void CVtkPointCloudView::TickAutoRotate(double dtSec)
+{
+    if (!m_autoRotate) return;
+    if (!m_vtkRenderer || !m_vtkRenderWindow) return;
+
+    vtkCamera* cam = m_vtkRenderer->GetActiveCamera();
+    if (!cam) return;
+
+    // 데이터가 바뀌었거나 첫 회전이면 focal/radius 보정
+    if (!m_orbitReady)
+        UpdateOrbitFromVisibleBounds();
+
+    // focal을 bounds 중심으로 고정
+    cam->SetFocalPoint(m_orbitFocal);
+
+    const double dAngle = m_rotateDegPerSec * dtSec; // deg
+    cam->Azimuth(dAngle); // 수평 회전
+
+    if (!m_useYawOnly)
+    {
+        // 아주 약하게 상하 흔들림(선택)
+        cam->Elevation(0.15 * dAngle);
+    }
+
+    m_vtkRenderer->ResetCameraClippingRange();
+    m_vtkRenderWindow->Render();
 }

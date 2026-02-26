@@ -75,6 +75,9 @@
     <ClInclude Include="Types.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="DioDeviceManager.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SmartRayViewer.cpp">
@@ -108,6 +111,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="DlgParam.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="DioDeviceManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

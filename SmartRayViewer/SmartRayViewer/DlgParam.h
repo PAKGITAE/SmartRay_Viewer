@@ -18,6 +18,7 @@ struct ParamSpec {
 	double     defDouble;
 	const wchar_t* defStr;
 	const wchar_t* desc;
+	bool bCombo;
 };
 
 struct RowInfo {
@@ -41,20 +42,44 @@ static const wchar_t* kSensorKeys[] = {
 	L"X_Scale",
 	L"Y_Scale",
 	L"Z_Scale",
-	L"NumberOfProfiles"
+	L"NumberOfProfiles",
+
+	L"S1_ExposureTime",
+	L"S1_BrightnessThreshold",
+	L"S2_ExposureTime",
+	L"S2_BrightnessThreshold",
+
+	L"TriggerMode",
+	L"Trigger_Frequency",
+	L"Trigger_Source",
+	L"Trigger_Divider",
+	L"Trigger_Delay",
+	L"Trigger_Direction",
 
 };
 static const size_t kSensorKeyCount = _countof(kSensorKeys);
 
 static const ParamSpec kSensorKeySpec[kSensorKeyCount] = {
-	{ DataType::TYPE_STRING		,  0		, 0		,L"192.168.178.200"		, L"Sensor #1의 IP를 입력한다."},
-	{ DataType::TYPE_INT			,  40		, 0		,L""						, L"Sensor #1의 Port번호를 입력한다."},
-	{ DataType::TYPE_STRING		,  0		, 0		,L"192.168.178.201"		, L"Sensor #2의 IP를 입력한다."},
-	{ DataType::TYPE_INT			,  40		, 0		,L""						, L"Sensor #2의 Port번호를 입력한다."},
-	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 X Scale 입력한다.(단위 : mm)"},
-	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Y Scale 입력한다.(단위 : mm)"},
-	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Z Scale 입력한다.(단위 : mm)"},
-	{ DataType::TYPE_INT			, 1000		, 0		, L""					, L"측정을 라인 갯수를 설정합니다.(10단위로 설정)" }
+	{ DataType::TYPE_STRING		,  0		, 0		,L"192.168.178.200"		, L"Sensor #1의 IP를 입력한다." , false },
+	{ DataType::TYPE_INT			,  40		, 0		,L""						, L"Sensor #1의 Port번호를 입력한다.", false },
+	{ DataType::TYPE_STRING		,  0		, 0		,L"192.168.178.201"		, L"Sensor #2의 IP를 입력한다.", false },
+	{ DataType::TYPE_INT			,  40		, 0		,L""						, L"Sensor #2의 Port번호를 입력한다.", false },
+	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 X Scale 입력한다.(단위 : mm)", false },
+	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Y Scale 입력한다.(단위 : mm)", false },
+	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Z Scale 입력한다.(단위 : mm)", false },
+	{ DataType::TYPE_INT			, 1000		, 0		, L""					, L"측정을 라인 갯수를 설정합니다.(10단위로 설정)", false },
+
+	{ DataType::TYPE_INT			, 100		, 0		, L""					, L"센서#1의 ExposureTime을 설정합니다.(단위 us)", false },
+	{ DataType::TYPE_INT			, 10		, 0		, L""					, L"센서#1의 LaserLineBrightnessThreshold을 설정합니다.(단위 0~255)", false },
+	{ DataType::TYPE_INT			, 100		, 0		, L""					, L"센서#2의 ExposureTime을 설정합니다.(단위 us)", false },
+	{ DataType::TYPE_INT			, 10		, 0		, L""					, L"센서#2의 LaserLineBrightnessThreshold을 설정합니다.(단위 0~255)", false },
+
+	{ DataType::TYPE_INT			, 0		, 0		, L""					, L"센서 측정을 트리거모드로 할지 설정", true },
+	{ DataType::TYPE_INT			, 25	, 0		, L""					, L"트리거 측정시, Internal Trigger Frequency를 설정", false },
+	{ DataType::TYPE_INT			, 0		, 0		, L""					, L"트리거 측정시, External Trigger Source를 설정", true },
+	{ DataType::TYPE_INT			, 1		, 0		, L""					, L"트리거 측정시, Trigger Divider을 설정", false },
+	{ DataType::TYPE_INT			, 0		, 0		, L""					, L"트리거 측정시, Trigger Delay를 설정", false },
+	{ DataType::TYPE_INT			, 0		, 0		, L""					, L"트리거 측정시, Tigger Direction을 설정", true }
 
 };
 //-----------------------------------------------------------------
@@ -62,12 +87,12 @@ static const ParamSpec kSensorKeySpec[kSensorKeyCount] = {
 //-----------------------------------------------------------------
 //System
 static const wchar_t* kSystemKeys[] = {
-	L"UpdateFrameViewer"
+	L"UpdateFrameViewer",
 };
 static const size_t kSystemKeyCount = _countof(kSystemKeys);
 
 static const ParamSpec kSystemKeySpec[kSystemKeyCount] = {
-	{ DataType::TYPE_INT		, 5		, 0		, L""		, L"Point Cloud 3D뷰어의 업데이트 프레임을 설정 합니다." }
+	{ DataType::TYPE_INT		, 5		, 0		, L""		, L"Point Cloud 3D뷰어의 업데이트 프레임을 설정 합니다.", false },
 };
 //-----------------------------------------------------------------
 

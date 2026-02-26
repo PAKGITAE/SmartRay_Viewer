@@ -28,10 +28,3 @@ struct ZMapFrame
 
     std::vector<uint16_t> z; // w*h
 };
-
-struct ThicknessFrame
-{
-    uint64_t topFrameNo = 0;
-    uint64_t bottomFrameNo = 0;
-    std::vector<double> t;
-};

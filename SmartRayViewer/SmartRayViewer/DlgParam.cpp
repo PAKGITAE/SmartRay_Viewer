@@ -213,7 +213,50 @@ void DlgParam::FillGridFromParams()
             case DataType::TYPE_STRING:   valueStr = p.strValue.c_str();         break;
             default: break;
             }
-            _GridParam.SetItemText(row, 2, valueStr);
+
+
+            if (spec.bCombo == true) {
+                CStringArray comboItems;
+                if (gi == 0) {
+                    if (ki == 12) {
+                        comboItems.Add(L"FreeRun");
+                        comboItems.Add(L"Internal");
+                        comboItems.Add(L"External");
+                    }
+                    else if (ki == 14) {
+                        comboItems.Add(L"Quadrature Encoder");
+                        comboItems.Add(L"Input 2");
+                        comboItems.Add(L"Input 3");
+                        comboItems.Add(L"Input 2 / Input 3");
+                    }
+                    else if (ki == 17) {
+                        comboItems.Add(L"Clockwise / Forward");
+                        comboItems.Add(L"Anti-Clockwise / Backward");
+                        comboItems.Add(L"Both");
+                    }
+                }
+                
+
+                uint16_t selIndex = 0;
+                if (spec.type == DataType::TYPE_BOOLEAN) {
+                    bool boolValue = p.nValue;
+                    selIndex = boolValue ? 1 : 0;
+                }
+                else if (spec.type == DataType::TYPE_INT) {
+                    int intValue = p.nValue;
+                    selIndex = static_cast<uint16_t>(intValue);
+                    // 범위 체크
+                    if (selIndex >= comboItems.GetSize()) {
+                        selIndex = 0;
+                    }
+                }
+
+                _GridParam.SetCellTypeComboBox(row, 2, comboItems, selIndex);
+            }
+            else {
+                _GridParam.SetItemText(row, 2, valueStr);
+            }
+            
 
             // (3) 설명
             _GridParam.SetItemText(row, 3, spec.desc);
@@ -284,6 +327,32 @@ bool DlgParam::PullGridToParams()
         {
         case DataType::TYPE_INT:
             newParam.nDataType = DataType::TYPE_INT;
+            if (row == 13) {
+                if (valueW == L"FreeRun")
+                    valueW = L"0";
+                else if (valueW == L"Internal")
+                    valueW = L"1";
+                else if (valueW == L"External")
+                    valueW = L"2";
+            }
+            else if (row == 15) {
+                if (valueW == L"Quadrature Encoder")
+                    valueW = L"0";
+                else if (valueW == L"Input 2")
+                    valueW = L"1";
+                else if (valueW == L"Input 3")
+                    valueW = L"2";
+                else if (valueW == L"Input 2 / Input 3")
+                    valueW = L"3";
+            }
+            else if (row == 18) {
+                if (valueW == L"Clockwise / Forward")
+                    valueW = L"0";
+                else if (valueW == L"Anti-Clockwise / Backward")
+                    valueW = L"1";
+                else if (valueW == L"Both")
+                    valueW = L"2";
+            }
             newParam.nValue = _wtoi(valueW);
             break;
         case DataType::TYPE_DOUBLE:

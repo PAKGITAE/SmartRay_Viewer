@@ -133,4 +133,27 @@ private:
 
     vtkSmartPointer<vtkTransform>              m_tf90cw;     // TopView 기준 CW90 transform
     vtkSmartPointer<vtkTransformPolyDataFilter> m_tfFilter;  // polydata transform filter
+
+    // ---- Auto rotate -----------------------------------------------------------
+public:
+    // Auto rotate on/off
+    void StartAutoRotate(double degPerSec = 30.0); // 기본 30 deg/s
+    void StopAutoRotate();
+    void ToggleAutoRotate(double degPerSec = 30.0);
+    bool IsAutoRotating() const { return m_autoRotate; }
+
+    // MFC 타이머/루프에서 주기적으로 호출 (예: 16ms, 33ms)
+    void TickAutoRotate(double dtSec); // dtSec = 경과 시간(초)
+
+private:
+    bool   m_autoRotate = false;
+    double m_rotateDegPerSec = 30.0;   // 초당 회전 각도
+    bool   m_useYawOnly = true;        // 필요하면 yaw만(수평) / false면 약간 elevation도 가능
+
+    // 회전 기준점/반경(데이터 bounds 기반)
+    bool   m_orbitReady = false;
+    double m_orbitFocal[3] = { 0,0,0 };
+    double m_orbitRadius = 1.0;
+
+    void UpdateOrbitFromVisibleBounds(); // bounds로 focal/radius 갱신
 };

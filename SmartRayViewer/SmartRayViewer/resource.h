@@ -30,12 +30,13 @@
 #define IDC_BUTTON_DELETE_LOG           1015
 #define IDC_VTK_VIEW                    1016
 #define IDC_LABEL_ZMAP_VIEW_TITLE       1017
+#define IDC_LABEL_LOGO2                 1018
 #define IDC_LABEL_SENSOR_CONNECT_1      1019
 #define IDC_LABEL_SENSOR_CONNECT_2      1020
 #define IDC_SIGNAL_SENSOR_CONNECT_1     1021
 #define IDC_SIGNAL_SENSOR_CONNECT_2     1022
 #define IDC_BUTTON_START                1023
-#define IDC_BUTTON_STOP                 1024
+#define IDC_BUTTON_SENSOR_CONNECT       1024
 #define IDC_BUTTON_FRONT_VIEW           1025
 #define IDC_LIST_LOG                    1026
 #define IDC_BUTTON_SIDE_LEFT_VIEW       1026
@@ -45,6 +46,16 @@
 #define IDC_BUTTON_TOP_VIEW             1028
 #define IDC_BUTTON_SETTING              1029
 #define IDC_BUTTON_OPEN_FOLDER          1030
+#define IDC_BUTTON_STOP2                1031
+#define IDC_BUTTON_DATA_SAVE            1031
+#define IDC_BUTTON_LOAD_MAT             1032
+#define IDC_LABEL_PC_INFO               1033
+#define IDC_BUTTON_JOGFWD               1034
+#define IDC_BUTTON_JOGFWD2              1035
+#define IDC_BUTTON_JOGBWD               1035
+#define IDC_BUTTON_AUTO_ROTATE          1036
+#define IDC_BUTTON_DATA_SAVE2           1037
+#define IDC_BUTTON_AUTO_RANGE           1037
 
 // Next default values for new objects
 // 
@@ -52,7 +63,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        134
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1030
+#define _APS_NEXT_CONTROL_VALUE         1035
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
