@@ -42,7 +42,8 @@ static const wchar_t* kSensorKeys[] = {
 	L"X_Scale",
 	L"Y_Scale",
 	L"Z_Scale",
-	L"NumberOfProfiles",
+	L"S1_NumberOfProfiles",
+	L"S2_NumberOfProfiles",
 
 	L"S1_ExposureTime",
 	L"S1_BrightnessThreshold",
@@ -67,7 +68,8 @@ static const ParamSpec kSensorKeySpec[kSensorKeyCount] = {
 	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 X Scale 입력한다.(단위 : mm)", false },
 	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Y Scale 입력한다.(단위 : mm)", false },
 	{ DataType::TYPE_DOUBLE		,  0		, 0.1	,L""						, L"Sensor의 Z Scale 입력한다.(단위 : mm)", false },
-	{ DataType::TYPE_INT			, 1000		, 0		, L""					, L"측정을 라인 갯수를 설정합니다.(10단위로 설정)", false },
+	{ DataType::TYPE_INT			, 1000		, 0		, L""					, L"센서#1 측정을 라인 갯수를 설정합니다.(10단위로 설정)", false },
+	{ DataType::TYPE_INT			, 1000		, 0		, L""					, L"센서#2 측정을 라인 갯수를 설정합니다.(10단위로 설정)", false },
 
 	{ DataType::TYPE_INT			, 100		, 0		, L""					, L"센서#1의 ExposureTime을 설정합니다.(단위 us)", false },
 	{ DataType::TYPE_INT			, 10		, 0		, L""					, L"센서#1의 LaserLineBrightnessThreshold을 설정합니다.(단위 0~255)", false },
@@ -88,11 +90,15 @@ static const ParamSpec kSensorKeySpec[kSensorKeyCount] = {
 //System
 static const wchar_t* kSystemKeys[] = {
 	L"UpdateFrameViewer",
+	L"Thickness_View",
+	L"Diff_View"
 };
 static const size_t kSystemKeyCount = _countof(kSystemKeys);
 
 static const ParamSpec kSystemKeySpec[kSystemKeyCount] = {
 	{ DataType::TYPE_INT		, 5		, 0		, L""		, L"Point Cloud 3D뷰어의 업데이트 프레임을 설정 합니다.", false },
+	{ DataType::TYPE_INT		, 2		, 0		, L""		, L"측정할 센서 모드를 선택합니다.", true },
+	{ DataType::TYPE_INT		, 0		, 0		, L""		, L"측저 결과표에 차이값을 표현합니다.", true },
 };
 //-----------------------------------------------------------------
 

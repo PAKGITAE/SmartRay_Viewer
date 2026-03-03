@@ -138,16 +138,19 @@ void CVtkPointCloudView::InitializeVTKWindow(HWND hWndHost)
     if (!m_vtkRenderWindow)
         m_vtkRenderWindow = vtkSmartPointer<vtkRenderWindow>::New();
 
-    vtkNew<vtkRenderWindowInteractor> interactor;
-    interactor->SetInteractorStyle(
-        vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New()
-    );
+    if (!m_interactor)
+        m_interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+
+    if (!m_style)
+        m_style = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
+
+    m_interactor->SetInteractorStyle(m_style);
 
     m_vtkRenderer = vtkSmartPointer<vtkRenderer>::New();
     m_vtkRenderer->SetBackground(0.1, 0.2, 0.3);
 
     m_vtkRenderWindow->SetParentId(hWndHost);
-    m_vtkRenderWindow->SetInteractor(interactor);
+    m_vtkRenderWindow->SetInteractor(m_interactor);
     m_vtkRenderWindow->AddRenderer(m_vtkRenderer);
 
     // Axes
@@ -162,7 +165,7 @@ void CVtkPointCloudView::InitializeVTKWindow(HWND hWndHost)
 
     m_axesWidget = vtkSmartPointer<vtkOrientationMarkerWidget>::New();
     m_axesWidget->SetOrientationMarker(m_axesActor);
-    m_axesWidget->SetInteractor(interactor);
+    m_axesWidget->SetInteractor(m_interactor);
     m_axesWidget->SetViewport(0.85, 0.01, 0.99, 0.15);
     m_axesWidget->SetEnabled(1);
     m_axesWidget->InteractiveOff();
@@ -327,7 +330,7 @@ void CVtkPointCloudView::ViewIso()
     const double cy = (b[2] + b[3]) * 0.5;
     const double cz = (b[4] + b[5]) * 0.5;
     const double size = SafeSize(b);
-    const double dist = size * 2.8;
+    const double dist = size * 1.3;
 
     double fp[3] = { cx, cy, cz };
     double pos[3] = { cx + dist, cy + dist, cz + dist };
@@ -456,7 +459,7 @@ bool CVtkPointCloudView::UpdatePointCloud(const SR_3DPOINT* pts, size_t nPts)
         m_cameraInitialized = true;
 
         // 초기 1회만 기본 뷰 세팅
-        ViewFront();
+        ViewIso();
         UpdateOrbitFromVisibleBounds();
     }
     else
@@ -465,8 +468,8 @@ bool CVtkPointCloudView::UpdatePointCloud(const SR_3DPOINT* pts, size_t nPts)
         //if (!m_autoRotate)
         //    ViewFront();
         //else
-            ViewFront();
-            UpdateOrbitFromVisibleBounds(); // 데이터 범위가 바뀌면 궤도 중심만 갱신
+        ViewIso();
+        UpdateOrbitFromVisibleBounds(); // 데이터 범위가 바뀌면 궤도 중심만 갱신
     }
 
     return true;

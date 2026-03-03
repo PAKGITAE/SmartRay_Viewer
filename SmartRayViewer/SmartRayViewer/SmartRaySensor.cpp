@@ -143,7 +143,6 @@ bool SmartRaySensor::Connect(int timeoutS)
 {
     if (m_connected.load()) return true;
 
-    // 1) SDK init ref 확보
     if (!m_apiRefHeld)
     {
         if (!EnsureApiInitialized())
@@ -151,7 +150,6 @@ bool SmartRaySensor::Connect(int timeoutS)
         m_apiRefHeld = true;
     }
 
-    // 2) 실제 센서 connect
     int rc = SR_API_ConnectSensor(m_sensor, timeoutS);
     if (rc != SUCCESS)
     {
@@ -163,14 +161,13 @@ bool SmartRaySensor::Connect(int timeoutS)
     m_connected.store(true);
     RegisterInstance();
 
-    // 3) point cloud callback 등록(1회)
     if (!RegisterPointCloudCallbackOnce())
     {
         Disconnect();
         return false;
     }
 
-    // 4) heavy config 1회 수행
+    // ✅ Heavy 1회
     if (!EnsureConfiguredOnce())
     {
         Disconnect();
@@ -206,38 +203,15 @@ void SmartRaySensor::Disconnect()
 // ============================================================================
 bool SmartRaySensor::Start()
 {
-    if (!IsConnected())
-        return false;
+    if (!IsConnected()) return false;
 
-    // heavy config이 아직이면 수행
     if (!EnsureConfiguredOnce())
         return false;
 
-    // Start 직전 lightweight 변경 반영
-    {
-        uint32_t profiles = m_profilesToCapture.load();
-        if (profiles > 0)
-        {
-            if (!ApplyProfilesIfChanged(profiles))
-                return false;
-        }
+    // ✅ Start 직전에만 runtime apply
+    if (!SetRuntimeConfig())
+        return false;
 
-        const float xScale = m_xScaleToSet.load();
-        if (!ApplyXScaleIfChanged(xScale))
-            return false;
-
-        const int ch = m_paramChannel.load();
-
-        const int32_t exposure = m_exposureToSet.load();
-        if (!ApplyExposureIfChanged(exposure, ch))
-            return false;
-
-        const int32_t th = m_brightnessThToSet.load();
-        if (!ApplyBrightnessThresholdIfChanged(th, ch))
-            return false;
-    }
-
-    // 프레임 카운터/merge 버퍼 초기화
     ResetRunState(true, true);
 
     int ret = SR_API_StartAcquisition(m_sensor);
@@ -266,20 +240,19 @@ bool SmartRaySensor::EnsureConfiguredOnce()
     if (!IsConnected()) return false;
     if (m_configuredOnce.load()) return true;
 
-    uint32_t profiles = m_profilesToCapture.load();
-    if (profiles == 0) profiles = 200;
-
-    if (!ConfigurePointCloud_Once(profiles))
+    if (!SetBaseConfig())
         return false;
 
     m_configuredOnce.store(true);
+
+    // (선택) base 반영된 값 읽기
+    ReadBackAppliedConfig();
     return true;
 }
 
-bool SmartRaySensor::ConfigurePointCloud_Once(uint32_t profiles)
-{
-    if (!IsConnected()) return false;
 
+bool SmartRaySensor::SetBaseConfig()
+{
     int ret = 0;
 
     ret = SR_API_LoadCalibrationDataFromSensor(m_sensor);
@@ -294,212 +267,170 @@ bool SmartRaySensor::ConfigurePointCloud_Once(uint32_t profiles)
     ret = SR_API_SetImageAcquisitionType(m_sensor, ImageAquisitionType_PointCloud);
     if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetImageAcquisitionType(PointCloud)");
 
-    ret = SR_API_SetNumberOfProfilesToCapture(m_sensor, profiles);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetNumberOfProfilesToCapture");
-
+    // 패킷은 base로 두는게 안정적
     ret = SR_API_SetPacketSize(m_sensor, 0);
     if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetPacketSize");
 
-    ret = SR_API_SetPacketTimeOut(m_sensor, 500);
+    ret = SR_API_SetPacketTimeOut(m_sensor, 1000);
     if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetPacketTimeOut");
 
-    // ⚠️ 파라미터 반영
+    // (선택)
+    // ret = SR_API_SetMetaDataExportEnabled(m_sensor, true);
+
+    //ret = SR_API_SetSmartXactMode(m_sensor, SR_API_SMARTXACT_MODE_DEFAULT);
+    //if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetSmartXactMode");
+
+    float sensorConfiguredXScale = 0.025;
+    ret = SR_API_SetTransportResolution(m_sensor, sensorConfiguredXScale);
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_GetTransportResolution");
+
+    // ✅ base 변경 반영 확정
     ret = SR_API_SendParameterSetToSensor(m_sensor);
     if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SendParameterSetToSensor");
 
-    ret = SR_API_SetMetaDataExportEnabled(m_sensor, true);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetMetaDataExportEnabled");
-
-    //Trigger Setting(4개)
-    DataTriggerMode Mode = DataTriggerMode_FreeRunning;
-    if (m_TriggerMode == 1)
-        Mode = DataTriggerMode_Internal;
-    else if(m_TriggerMode == 2)
-        Mode = DataTriggerMode_External;
-    else
-        Mode = DataTriggerMode_FreeRunning;
-    
-    ret = SR_API_SetDataTriggerMode(m_sensor, Mode);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerMode(FreeRunning)");
+    return true;
+}
 
 
-    ret = SR_API_SetDataTriggerInternalFrequency(m_sensor, m_TriggerFrequency);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerInternalFrequency");
+// ============================================================================
+// private: runtime apply (Start 직전 변경 반영)
+// ============================================================================
+bool SmartRaySensor::SetRuntimeConfig()
+{
+    const uint32_t profiles = m_profilesToCapture.load();
+    if (profiles > 0)
+        if (!SetProfilesIfChanged(profiles)) return false;
 
-    DataTriggerSource source = DataTriggerSource_QuadEncoder;
-    if (m_TriggerSource == 0)
-        source = DataTriggerSource_Input1;
-    else if (m_TriggerSource == 1)
-        source = DataTriggerSource_Input2;
-    else if (m_TriggerSource == 2)
-        source = DataTriggerSource_Combined;
-    else if (m_TriggerSource == 3)
-        source = DataTriggerSource_QuadEncoder;
+    //const float xScale = m_xScaleToSet.load();
+    //if (!SetXScaleIfChanged(xScale)) return false;
 
-    ret = SR_API_SetDataTriggerExternalTriggerSource(m_sensor, source);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerExternalTriggerSource");
+    //const int ch = m_paramChannel.load();
 
-    TriggerEdgeMode EdgeMode = TriggerEdgeMode_RisingEdge;
-    if (m_TriggerDirection == 0)
-        EdgeMode = TriggerEdgeMode_RisingEdge;
-    else if (m_TriggerDirection == 1)
-        EdgeMode = TriggerEdgeMode_FallingEdge;
-    else if (m_TriggerDirection == 2)
-        EdgeMode = TriggerEdgeMode_Both;
+    //const int32_t exposure = m_exposureToSet.load();
+    //if (!SetExposureIfChanged(exposure, ch)) return false;
 
-    ret = SR_API_SetDataTriggerExternalTriggerParameters(m_sensor, m_TriggerDivider, m_TriggerDelay, EdgeMode);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerExternalTriggerParameters");
+    //const int32_t th = m_brightnessThToSet.load();
+    //if (!SetBrightnessThresholdIfChanged(th, ch)) return false;
 
+    //// ✅ trigger는 분리해서 마지막에
+    //if (!SetTriggerIfChanged()) return false;
 
+    // 변경 후 한번에 하자
+    int ret = SR_API_SendParameterSetToSensor(m_sensor);
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SendParameterSetToSensor");
 
-    // transport resolution (xScale)
-    const float xScale = m_xScaleToSet.load();
-    ret = SR_API_SetTransportResolution(m_sensor, xScale);
+    // 적용 후 읽기(선택)
+    ReadBackAppliedConfig();
+    return true;
+}
+
+bool SmartRaySensor::SetProfilesIfChanged(uint32_t profiles)
+{
+    std::lock_guard<std::mutex> lk(m_cfgMtx);
+    if (!IsConnected()) return false;
+    if (profiles == 0) return true;
+
+    int ret = SR_API_SetNumberOfProfilesToCapture(m_sensor, profiles);
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetNumberOfProfilesToCapture");
+
+    return true;
+}
+
+bool SmartRaySensor::SetXScaleIfChanged(float xScale)
+{
+    std::lock_guard<std::mutex> lk(m_cfgMtx);
+    if (!IsConnected()) return false;
+    if (xScale <= 0.f) return true;
+
+    int ret = SR_API_SetTransportResolution(m_sensor, xScale);
     if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetTransportResolution(XScale)");
 
-    // exposure / brightness
+    return true;
+}
+
+bool SmartRaySensor::SetExposureIfChanged(int32_t exposure, int channel)
+{
+    std::lock_guard<std::mutex> lk(m_cfgMtx);
+    if (!IsConnected()) return false;
+    if (exposure <= 0) return true;
+
+    int ret = SR_API_SetExposureTime(m_sensor, channel, exposure);
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetExposureTime");
+
+    return true;
+}
+
+bool SmartRaySensor::SetBrightnessThresholdIfChanged(int32_t th, int channel)
+{
+    std::lock_guard<std::mutex> lk(m_cfgMtx);
+    if (!IsConnected()) return false;
+    if (th < 0) return true;
+
+    int ret = SR_API_Set3DLaserLineBrightnessThreshold(m_sensor, channel, th);
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_Set3DLaserLineBrightnessThreshold");
+
+    return true;
+}
+
+bool SmartRaySensor::SetTriggerIfChanged()
+{
+    std::lock_guard<std::mutex> lk(m_cfgMtx);
+    if (!IsConnected()) return false;
+
+    // mode
+    DataTriggerMode mode = DataTriggerMode_FreeRunning;
+    const uint32_t tm = m_TriggerMode.load();
+    if (tm == 1) mode = DataTriggerMode_Internal;
+    else if (tm == 2) mode = DataTriggerMode_External;
+
+    int ret = SR_API_SetDataTriggerMode(m_sensor, mode);
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerMode");
+
+    // internal frequency
+    ret = SR_API_SetDataTriggerInternalFrequency(m_sensor, m_TriggerFrequency.load());
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerInternalFrequency");
+
+    // source
+    DataTriggerSource src = DataTriggerSource_QuadEncoder;
+    const uint32_t ts = m_TriggerSource.load();
+    if (ts == 0) src = DataTriggerSource_Input1;
+    else if (ts == 1) src = DataTriggerSource_Input2;
+    else if (ts == 2) src = DataTriggerSource_Combined;
+    else if (ts == 3) src = DataTriggerSource_QuadEncoder;
+
+    ret = SR_API_SetDataTriggerExternalTriggerSource(m_sensor, src);
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerExternalTriggerSource");
+
+    // edge(direction)
+    TriggerEdgeMode edge = TriggerEdgeMode_RisingEdge;
+    const uint32_t td = m_TriggerDirection.load();
+    if (td == 0) edge = TriggerEdgeMode_RisingEdge;
+    else if (td == 1) edge = TriggerEdgeMode_FallingEdge;
+    else if (td == 2) edge = TriggerEdgeMode_Both;
+
+    ret = SR_API_SetDataTriggerExternalTriggerParameters(
+        m_sensor,
+        m_TriggerDivider.load(),
+        m_TriggerDelay.load(),
+        edge
+    );
+    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerExternalTriggerParameters");
+
+    return true;
+}
+
+void SmartRaySensor::ReadBackAppliedConfig()
+{
+    if (!IsConnected()) return;
+
     const int ch = m_paramChannel.load();
 
-    const int32_t setExposureTime = m_exposureToSet.load();
-    ret = SR_API_SetExposureTime(m_sensor, ch, setExposureTime);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetExposureTime(Exposure)");
-
-    const int32_t brightnessTh = m_brightnessThToSet.load();
-    ret = SR_API_Set3DLaserLineBrightnessThreshold(m_sensor, ch, brightnessTh);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_Set3DLaserLineBrightnessThreshold(BrightnessTh)");
-
-    // -----------------------------
-    // local cache update
-    // -----------------------------
     SR_API_GetNumberOfProfilesToCapture(m_sensor, &m_sensorConfiguredProfiles);
     SR_API_GetTransportResolution(m_sensor, &m_sensorConfiguredXScale);
     SR_API_GetPacketSize(m_sensor, &m_packetSize);
     SR_API_GetPacketTimeOut(m_sensor, &m_packetTimeout);
     SR_API_Get3DLaserLineBrightnessThreshold(m_sensor, ch, &m_sensorConfiguredBrightnessTh);
     SR_API_GetExposureTime(m_sensor, ch, &m_sensorConfiguredExposureTime);
-
-    return true;
-}
-
-// ============================================================================
-// private: runtime apply (Start 직전 변경 반영)
-// ============================================================================
-bool SmartRaySensor::ApplyProfilesIfChanged(uint32_t profiles)
-{
-    std::lock_guard<std::mutex> lk(m_cfgMtx);
-    if (!IsConnected()) return false;
-    if (profiles == 0) return true;
-
-    //if (m_sensorConfiguredProfiles == profiles)
-    //    return true;
-
-    int ret = SR_API_SetNumberOfProfilesToCapture(m_sensor, profiles);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetNumberOfProfilesToCapture");
-
-    //Trigger Setting(4개)
-    DataTriggerMode Mode = DataTriggerMode_FreeRunning;
-    if (m_TriggerMode == 0)
-        Mode = DataTriggerMode_FreeRunning;
-    else if (m_TriggerMode == 1)
-        Mode = DataTriggerMode_Internal;
-    else if (m_TriggerMode == 2)
-        Mode = DataTriggerMode_External;
-
-    ret = SR_API_SetDataTriggerMode(m_sensor, Mode);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerMode(FreeRunning)");
-
-
-    ret = SR_API_SetDataTriggerInternalFrequency(m_sensor, m_TriggerFrequency);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerInternalFrequency");
-
-    DataTriggerSource source = DataTriggerSource_QuadEncoder;
-    if (m_TriggerSource == 0)
-        source = DataTriggerSource_QuadEncoder;
-    else if (m_TriggerSource == 1)
-        source = DataTriggerSource_Input1;
-    else if (m_TriggerSource == 2)
-        source = DataTriggerSource_Input2;
-    else if (m_TriggerSource == 3)
-        source = DataTriggerSource_Combined;
-
-    ret = SR_API_SetDataTriggerExternalTriggerSource(m_sensor, source);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerExternalTriggerSource");
-
-    TriggerEdgeMode EdgeMode = TriggerEdgeMode_RisingEdge;
-    if (m_TriggerDirection == 0)
-        EdgeMode = TriggerEdgeMode_FallingEdge;
-    else if (m_TriggerDirection == 1)
-        EdgeMode = TriggerEdgeMode_RisingEdge;
-    else if (m_TriggerDirection == 2)
-        EdgeMode = TriggerEdgeMode_Both;
-
-    ret = SR_API_SetDataTriggerExternalTriggerParameters(m_sensor, m_TriggerDivider, m_TriggerDelay, EdgeMode);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetDataTriggerExternalTriggerParameters");
-
-    // ⚠️ 장비에 따라 런타임 반영이 안되면 SendParameterSetToSensor 필요할 수 있음
-    // ret = SR_API_SendParameterSetToSensor(m_sensor);
-
-    SR_API_GetNumberOfProfilesToCapture(m_sensor, &m_sensorConfiguredProfiles);
-    SR_API_GetPacketSize(m_sensor, &m_packetSize);
-    SR_API_GetPacketTimeOut(m_sensor, &m_packetTimeout);
-
-    return true;
-}
-
-bool SmartRaySensor::ApplyXScaleIfChanged(float xScale)
-{
-    std::lock_guard<std::mutex> lk(m_cfgMtx);
-    if (!IsConnected()) return false;
-    if (xScale <= 0.f) return true;
-
-    // (현재는 항상 set) - 필요하면 아래처럼 캐시 비교 가능
-    // if (m_sensorConfiguredXScale == xScale) return true;
-
-    int ret = SR_API_SetTransportResolution(m_sensor, xScale);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetTransportResolution(XScale)");
-
-    SR_API_GetTransportResolution(m_sensor, &m_sensorConfiguredXScale);
-    return true;
-}
-
-bool SmartRaySensor::ApplyExposureIfChanged(int32_t exposure, int channel)
-{
-    std::lock_guard<std::mutex> lk(m_cfgMtx);
-    if (!IsConnected()) return false;
-
-    if (exposure <= 0) return true;
-
-    if (m_sensorConfiguredExposureTime == exposure)
-        return true;
-
-    int ret = SR_API_SetExposureTime(m_sensor, channel, exposure);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_SetExposureTime");
-
-    // ⚠️ 장비에 따라 런타임 반영이 안되면 SendParameterSetToSensor 필요할 수 있음
-    // ret = SR_API_SendParameterSetToSensor(m_sensor);
-
-    SR_API_GetExposureTime(m_sensor, channel, &m_sensorConfiguredExposureTime);
-    return true;
-}
-
-bool SmartRaySensor::ApplyBrightnessThresholdIfChanged(int32_t th, int channel)
-{
-    std::lock_guard<std::mutex> lk(m_cfgMtx);
-    if (!IsConnected()) return false;
-
-    if (th < 0) return true;
-
-    if (m_sensorConfiguredBrightnessTh == th)
-        return true;
-
-    int ret = SR_API_Set3DLaserLineBrightnessThreshold(m_sensor, channel, th);
-    if (ret != SUCCESS) return HandleReturnCode(ret, "SR_API_Set3DLaserLineBrightnessThreshold");
-
-    // ⚠️ 장비에 따라 런타임 반영이 안되면 SendParameterSetToSensor 필요할 수 있음
-    // ret = SR_API_SendParameterSetToSensor(m_sensor);
-
-    SR_API_Get3DLaserLineBrightnessThreshold(m_sensor, channel, &m_sensorConfiguredBrightnessTh);
-    return true;
 }
 
 // ============================================================================

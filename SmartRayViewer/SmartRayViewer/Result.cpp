@@ -157,11 +157,11 @@ void Result::OnPointCloud(std::shared_ptr<PcFrame> frame)
 
     // (0) 로그(가볍게)
     {
-        std::wstring msg =
-            L"Callback: cam=" + std::to_wstring(frame->camIndex) +
-            L" frameNo=" + std::to_wstring(frame->frameNo) +
-            L" count=" + std::to_wstring(frame->points.size());
-        LogManager::GetInstance().PushLog(Log::Result, L"OnPointCloud", msg);
+        //std::wstring msg =
+        //    L"Callback: cam=" + std::to_wstring(frame->camIndex) +
+        //    L" frameNo=" + std::to_wstring(frame->frameNo) +
+        //    L" count=" + std::to_wstring(frame->points.size());
+        //LogManager::GetInstance().PushLog(Log::Result, L"OnPointCloud", msg);
     }
 
     // (1) UpdateFrameViewer 파라미터
@@ -264,8 +264,12 @@ void Result::HandleThicknessPairingAndEnqueue(const std::shared_ptr<PcFrame>& fr
     const uint64_t fn = topMatch->frameNo;
 
     // ✅ nUpdateFrame 주기일 때만 두께 계산
-    if ((fn % (uint64_t)nUpdateFrame) != 0)
-        return;
+    static std::atomic<bool> s_firstThk{ true };
+    if (!s_firstThk.exchange(false))
+    {
+        if ((fn % (uint64_t)nUpdateFrame) != 0)
+            return;
+    }
 
     // ✅ 적체 방지: 밀리면 스킵(최신 위주 정책)
     if (m_thkBusy.exchange(true))
@@ -309,7 +313,17 @@ std::shared_ptr<ZMapFrame> Result::BuildZMapAndNotify(const std::shared_ptr<PcFr
 
 bool Result::ShouldProcessThisFrame(int cam, int nUpdateFrame)
 {
+    // nUpdateFrame 방어
+    if (nUpdateFrame <= 0) nUpdateFrame = 1;
+
+    // cam별 카운터 증가
     const uint64_t cnt = ++m_viewCount[cam];
+
+    // ✅ 첫 프레임은 무조건 처리
+    if (cnt == 1)
+        return true;
+
+    // 이후부터 주기 적용
     return (cnt % (uint64_t)nUpdateFrame) == 0;
 }
 
@@ -332,7 +346,7 @@ void Result::HandleUiCallbacks(const std::shared_ptr<PcFrame>& frame,
 
     // UI는 cam0만 전달
     const int cam = frame->camIndex;
-    if (cam != 0) return;
+    /*if (cam != 0) return;*/
 
     PcCb pcb;
     {
@@ -360,16 +374,16 @@ void Result::SanitizePointCloudInPlace(PcFrame& frame)
 
     const size_t after = pts.size();
 
-    if (after != before)
-    {
-        std::wstring msg =
-            L"Sanitize: cam=" + std::to_wstring(frame.camIndex) +
-            L" frameNo=" + std::to_wstring(frame.frameNo) +
-            L" removed=" + std::to_wstring(before - after) +
-            L" remain=" + std::to_wstring(after);
+    //if (after != before)
+    //{
+    //    std::wstring msg =
+    //        L"Sanitize: cam=" + std::to_wstring(frame.camIndex) +
+    //        L" frameNo=" + std::to_wstring(frame.frameNo) +
+    //        L" removed=" + std::to_wstring(before - after) +
+    //        L" remain=" + std::to_wstring(after);
 
-        LogManager::GetInstance().PushLog(Log::Result, L"SanitizePointCloudInPlace", msg);
-    }
+    //    LogManager::GetInstance().PushLog(Log::Result, L"SanitizePointCloudInPlace", msg);
+    //}
 }
 
 // ============================================================================
@@ -647,7 +661,7 @@ void Result::TryComputeThickness(std::shared_ptr<PcFrame> top, std::shared_ptr<P
     }
 
     ApplyMatrix(bottomPts.data(), (int)bottomPts.size(), mat);
-    MirrorZOnly_PerProfile(bottomPts, bottom->numProfiles);
+    //MirrorZOnly_PerProfile(bottomPts, bottom->numProfiles);
 
     // out 결과 버퍼 (top size 기준으로 넉넉히)
     double* thickness_results = new double[top->points.size()];
@@ -659,7 +673,7 @@ void Result::TryComputeThickness(std::shared_ptr<PcFrame> top, std::shared_ptr<P
         bottomPts.data(), (int)bottomPts.size(),
         &thickness_results,
         &out_num_results,
-        0.019,
+        0.025,
         40.0
     );
 

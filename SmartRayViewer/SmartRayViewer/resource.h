@@ -54,8 +54,10 @@
 #define IDC_BUTTON_JOGFWD2              1035
 #define IDC_BUTTON_JOGBWD               1035
 #define IDC_BUTTON_AUTO_ROTATE          1036
-#define IDC_BUTTON_DATA_SAVE2           1037
 #define IDC_BUTTON_AUTO_RANGE           1037
+#define IDC_VTK_VIEW2                   1038
+#define IDC_LABEL_INSPECT_INFO          1039
+#define IDC_LABEL_LINE                  1040
 
 // Next default values for new objects
 // 
@@ -63,7 +65,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        134
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1035
+#define _APS_NEXT_CONTROL_VALUE         1041
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -29,6 +29,35 @@
 // - PointCloud callback 등록은 1회만 수행
 // - cam_index로 instance를 찾기 위해 static map 사용
 // ============================================================================
+
+struct SensorBaseConfig
+{
+    std::string parFile;          // optional
+    uint32_t packetSize = 0;      // 0이면 SDK default
+    uint32_t packetTimeoutMs = 1000;
+    bool metaDataExport = true;
+    ImageAquisitionType acqType = ImageAquisitionType_PointCloud;
+};
+
+struct SensorRuntimeConfig
+{
+    uint32_t profilesToCapture = 200;
+    uint32_t mergeExpectedProfiles = 0;
+    float transportResolution = 0.019f;
+
+    // ✅ 채널별(최소 2채널까지 고려)
+    int32_t exposure[2] = { 100, 100 };
+    int32_t brightnessTh[2] = { 10, 10 };
+
+    // trigger
+    uint32_t triggerMode = 0;
+    uint32_t triggerFrequency = 25;
+    uint32_t triggerSource = 0;
+    uint32_t triggerDivider = 1;
+    uint32_t triggerDelay = 0;
+    uint32_t triggerDirection = 0;
+};
+
 class SmartRaySensor
 {
 public:
@@ -108,16 +137,19 @@ private:
     // Internal: one-time configuration
     // =========================================================================
     bool EnsureConfiguredOnce();
-    bool ConfigurePointCloud_Once(uint32_t profiles);
+    bool SetBaseConfig();
 
-private:
     // =========================================================================
     // Internal: runtime apply (Start 직전 변경 반영)
     // =========================================================================
-    bool ApplyProfilesIfChanged(uint32_t profiles);
-    bool ApplyXScaleIfChanged(float xScale);
-    bool ApplyExposureIfChanged(int32_t exposure, int channel);
-    bool ApplyBrightnessThresholdIfChanged(int32_t th, int channel);
+    bool SetRuntimeConfig();
+    bool SetProfilesIfChanged(uint32_t profiles);
+    bool SetXScaleIfChanged(float xScale);
+    bool SetExposureIfChanged(int32_t exposure, int channel);
+    bool SetBrightnessThresholdIfChanged(int32_t th, int channel);
+    bool SetTriggerIfChanged();
+
+    void ReadBackAppliedConfig();
 
 private:
     // =========================================================================

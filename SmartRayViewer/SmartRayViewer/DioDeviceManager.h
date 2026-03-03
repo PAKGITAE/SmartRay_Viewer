@@ -16,8 +16,8 @@ struct DioInputBit
 
 struct DioOutputBit
 {
-    static const int MoveFwd = 0;  // 정방향 이동
-    static const int MoveBwd = 2;  // 역방향 이동
+    static const int MoveFwd = 2;  // 정방향 이동
+    static const int MoveBwd = 0;  // 역방향 이동
     static const int MovePowerOff = 3;  // 전원 차단
 };
 

@@ -218,21 +218,33 @@ void DlgParam::FillGridFromParams()
             if (spec.bCombo == true) {
                 CStringArray comboItems;
                 if (gi == 0) {
-                    if (ki == 12) {
+                    if (ki == 13) {
                         comboItems.Add(L"FreeRun");
                         comboItems.Add(L"Internal");
                         comboItems.Add(L"External");
                     }
-                    else if (ki == 14) {
+                    else if (ki == 15) {
                         comboItems.Add(L"Quadrature Encoder");
                         comboItems.Add(L"Input 2");
                         comboItems.Add(L"Input 3");
                         comboItems.Add(L"Input 2 / Input 3");
                     }
-                    else if (ki == 17) {
+                    else if (ki == 18) {
                         comboItems.Add(L"Clockwise / Forward");
                         comboItems.Add(L"Anti-Clockwise / Backward");
                         comboItems.Add(L"Both");
+                    }
+                    
+                }
+                if (gi == 1) {
+                    if (ki == 1) {
+                        comboItems.Add(L"단일 센서 측정");
+                        comboItems.Add(L"2개 센서 측정");
+                        comboItems.Add(L"2개 센서 두께 측정");
+                    }
+                    if (ki == 2) {
+                        comboItems.Add(L"미사용");
+                        comboItems.Add(L"사용");
                     }
                 }
                 
@@ -327,7 +339,7 @@ bool DlgParam::PullGridToParams()
         {
         case DataType::TYPE_INT:
             newParam.nDataType = DataType::TYPE_INT;
-            if (row == 13) {
+            if (row == 14) {
                 if (valueW == L"FreeRun")
                     valueW = L"0";
                 else if (valueW == L"Internal")
@@ -335,7 +347,7 @@ bool DlgParam::PullGridToParams()
                 else if (valueW == L"External")
                     valueW = L"2";
             }
-            else if (row == 15) {
+            else if (row == 16) {
                 if (valueW == L"Quadrature Encoder")
                     valueW = L"0";
                 else if (valueW == L"Input 2")
@@ -345,13 +357,27 @@ bool DlgParam::PullGridToParams()
                 else if (valueW == L"Input 2 / Input 3")
                     valueW = L"3";
             }
-            else if (row == 18) {
+            else if (row == 19) {
                 if (valueW == L"Clockwise / Forward")
                     valueW = L"0";
                 else if (valueW == L"Anti-Clockwise / Backward")
                     valueW = L"1";
                 else if (valueW == L"Both")
                     valueW = L"2";
+            }
+            else if (row == 21) {
+                if (valueW == L"단일 센서 측정")
+                    valueW = L"0";
+                else if (valueW == L"2개 센서 측정")
+                    valueW = L"1";
+                else if (valueW == L"2개 센서 두께 측정")
+                    valueW = L"2";
+            }
+            else if (row == 22) {
+                if (valueW == L"미사용")
+                    valueW = L"0";
+                else if (valueW == L"사용")
+                    valueW = L"1";
             }
             newParam.nValue = _wtoi(valueW);
             break;

@@ -35,6 +35,9 @@ class vtkFloatArray;
 class vtkTransform;
 class vtkTransformPolyDataFilter;
 
+class vtkRenderWindowInteractor;
+class vtkInteractorStyleTrackballCamera;
+
 class CVtkPointCloudView
 {
 public:
@@ -134,6 +137,8 @@ private:
     vtkSmartPointer<vtkTransform>              m_tf90cw;     // TopView 기준 CW90 transform
     vtkSmartPointer<vtkTransformPolyDataFilter> m_tfFilter;  // polydata transform filter
 
+    vtkSmartPointer<vtkRenderWindowInteractor> m_interactor;
+    vtkSmartPointer<vtkInteractorStyleTrackballCamera> m_style;
     // ---- Auto rotate -----------------------------------------------------------
 public:
     // Auto rotate on/off

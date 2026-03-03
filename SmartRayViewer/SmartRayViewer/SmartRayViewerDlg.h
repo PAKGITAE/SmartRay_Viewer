@@ -40,7 +40,8 @@ enum class RoiStatSource
 // 센서 파라미터(앱 파라미터에서 읽어옴)
 struct SensorParams
 {
-    int   profiles = 200;
+    int   profiles_s1 = 200;
+    int   profiles_s2 = 200;
     float xScale = 0.019f;
 
     // ✅ 센서별
@@ -62,18 +63,16 @@ struct SensorParams
 static SensorParams LoadSensorParams()
 {
     SensorParams p;
-
-    p.profiles = AppStore::Get().GetParameterAsInt("Sensor", "NumberOfProfiles");
+    p.profiles_s1 = AppStore::Get().GetParameterAsInt("Sensor", "S1_NumberOfProfiles");
+    p.profiles_s2 = AppStore::Get().GetParameterAsInt("Sensor", "S2_NumberOfProfiles");
     p.xScale = (float)AppStore::Get().GetParameterAsDouble("Sensor", "X_Scale");
 
-    // ✅ 센서별로 읽기
     p.exposure_s1 = AppStore::Get().GetParameterAsInt("Sensor", "S1_ExposureTime");
     p.brightnessTh_s1 = AppStore::Get().GetParameterAsInt("Sensor", "S1_BrightnessThreshold");
 
     p.exposure_s2 = AppStore::Get().GetParameterAsInt("Sensor", "S2_ExposureTime");
     p.brightnessTh_s2 = AppStore::Get().GetParameterAsInt("Sensor", "S2_BrightnessThreshold");
 
-    // 공통(트리거)
     p.TriggerMode = AppStore::Get().GetParameterAsInt("Sensor", "TriggerMode");
     p.TriggerFrequency = AppStore::Get().GetParameterAsInt("Sensor", "Trigger_Frequency");
     p.TriggerSource = AppStore::Get().GetParameterAsInt("Sensor", "Trigger_Source");
@@ -84,26 +83,43 @@ static SensorParams LoadSensorParams()
     return p;
 }
 
-// SensorParams → SmartRaySensor 적용
-static void ApplyToSensor(SmartRaySensor& s, int camIndex, const SensorParams& p)
+static void ApplyBaseToSensor(SmartRaySensor& s, int camIndex)
 {
-    s.SetProfilesToCapture((uint32_t)p.profiles);
-    s.SetMergeExpectedProfiles((uint32_t)p.profiles);
+    if (camIndex == 0)
+    {
+        s.SetParFilePath("C:\\Forvis\\178_200.par");
+    }
+    else
+    {
+        s.SetParFilePath("C:\\Forvis\\178_201.par");
+    }
+
+}
+
+static void ApplyRuntimeToSensor(SmartRaySensor& s, int camIndex, const SensorParams& p)
+{
+    
     s.SetXScale(p.xScale);
 
-    // ✅ 센서별 exposure/threshold 적용
+    // 센서별 노출/threshold
     if (camIndex == 0)
     {
         s.SetExposureTime(p.exposure_s1);
         s.SetLaserLineBrightnessThreshold(p.brightnessTh_s1);
+
+        s.SetProfilesToCapture((uint32_t)p.profiles_s1);
+        s.SetMergeExpectedProfiles((uint32_t)p.profiles_s1);
     }
     else
     {
         s.SetExposureTime(p.exposure_s2);
         s.SetLaserLineBrightnessThreshold(p.brightnessTh_s2);
+
+        s.SetProfilesToCapture((uint32_t)p.profiles_s2);
+        s.SetMergeExpectedProfiles((uint32_t)p.profiles_s2);
     }
 
-    // 공통(트리거)
+    // 공통 Trigger
     s.SetTriggerMode(p.TriggerMode);
     s.SetTriggerFrequency(p.TriggerFrequency);
     s.SetTriggerSource(p.TriggerSource);
@@ -112,14 +128,28 @@ static void ApplyToSensor(SmartRaySensor& s, int camIndex, const SensorParams& p
     s.SetTriggerDirection(p.TriggerDirection);
 }
 
+enum class SensorMode { Single = 0, Dual = 1, Thickness = 2 };
 
+static SensorMode GetSensorMode()
+{
+    int v = AppStore::Get().GetParameterAsInt("System", "Thickness_View");
+    if (v < 0) v = 0;
+    if (v > 2) v = 2;
+    return (SensorMode)v;
+}
 
-enum class MoveDir { Stop, Fwd, Bwd };
-enum class AutoPhase { Idle, SwitchDeadTime, SegmentRun };
-enum class StopPlan { None, StopAfterThisSegment, ReturnAfterFwd };
+static bool NeedSensor0(SensorMode /*m*/) { return true; }
+static bool NeedSensor1(SensorMode m) { return (m != SensorMode::Single); }
 
-
-
+static std::wstring ModeToText(SensorMode m)
+{
+    switch (m) {
+    case SensorMode::Single:    return L"Mode=Single(0)";
+    case SensorMode::Dual:      return L"Mode=Dual(1)";
+    case SensorMode::Thickness: return L"Mode=Thickness(2)";
+    default:                    return L"Mode=Unknown";
+    }
+}
 
 // ============================================================================
 // CSmartRayViewerDlg
@@ -178,7 +208,7 @@ private:
     // ZMap viewer
     // =========================================================================
     void InitZMapSliders(uint16_t mn, uint16_t mx);
-    void InitZMapSliders(); // 슬라이더 Range는 항상 0~65535
+    //void InitZMapSliders(); // 슬라이더 Range는 항상 0~65535
     void UpdateZMapJet();
     void UpdateZMapValueLabels();
 
@@ -211,6 +241,8 @@ private:
     bool ComputeRoiStats_FromPointCloud(const PcFrame& frame, bool rotateCW90);
     bool ComputeRoiStats_FromZMap(uint16_t invalidValue);
     void AddGridMeasureZ(int RoiNo, const RoiInfoData& st);
+
+    void AppendStepRowsIfDualMode();
 
 private:
     // =========================================================================
@@ -245,15 +277,10 @@ private:
 
 // 모터 관련
 private:
-
-
     bool m_jogFwdOn = false;
     bool m_jogBwdOn = false;
 
     void Jog_AllOff();
-
-    // 검사(센서) 상태
-    bool m_measureAllowed = false; // 자동 중 측정을 켤 수 있는 상태인지
 
 private:
     // =========================================================================
@@ -268,6 +295,24 @@ private:
 
     uint16_t m_vmin = 1;
     uint16_t m_vmax = 65535;
+
+    // =========================================================================
+    // ZMap auto scan (vmin/vmax 1초마다 이동)
+    // =========================================================================
+    bool     m_zWinAnimOn = false;
+    int      m_zWinStep = 100;    // 1초마다 10
+    int      m_zWinRange = 1000;   // base 기준 ±100
+
+    bool     m_zWinShrinking = true;   // true: 넓은창->base로 좁히기, false: base->넓히기
+
+    uint16_t m_baseVmin = 0;
+    uint16_t m_baseVmax = 65535;
+
+    void CaptureBaseVminVmax();
+    void TickZMapWindowAnim();
+    void StartZMapWindowAnim();
+    void StopZMapWindowAnim();
+
 
 private:
     // =========================================================================
@@ -295,6 +340,7 @@ private:
     vLabel _vLabelVersion;
     vLabel _vLabelTime;
     vLabel _vLabelPCInfo;
+    vLabel _vLabelViewInfo;
 
     vLabel _vLabel3DTile;
     vLabel _vLabelZmapTitle;
@@ -330,6 +376,8 @@ private:
     vLabel _vLabelvMin;
     vLabel _vLabelvMax;
 
+    vLabel _vLabelLine;
+
     CToolTipCtrl m_toolTip;
     CFont m_toolTipFont;
     void InitToolTips();
@@ -338,9 +386,20 @@ private:
     // =========================================================================
     // VTK viewer
     // =========================================================================
-    CVtkPointCloudView m_vtkView;
+    CVtkPointCloudView m_vtkView1;
+    CVtkPointCloudView m_vtkView2;
     UINT_PTR m_timerRotate = 0;
     DWORD    m_lastTick = 0;
+
+    // VTK host 원래 위치 기억용
+    bool  m_vtkHostRcCaptured = false;
+    CRect m_rcVtkHost1Orig;
+    CRect m_rcVtkHost2Orig;
+
+    SensorMode m_lastMode = SensorMode::Single;
+
+    void CaptureVtkHostRectsOnce();
+    void ApplyVtkLayoutByMode(SensorMode mode);
 
 private:
     // =========================================================================
